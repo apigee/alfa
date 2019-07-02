@@ -1,0 +1,27 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-07-02T18:34:51Z",
+  "id": "edge-sso-adfs-nee",
+  "duration": 133,
+  "title": "Apigee Edge. Ops Labs. Advanced: Apigee Edge SSO with ADFS",
+  "authors": "yuriyl@google.com",
+  "summary": "In this codelab, you'll install AIO Edge on-premises planet, configure ADFS for SAML authentication and a New Experience UI.",
+  "source": "1-pb5sUjPJzsLawf9oMA8XfyVZnz_Fv5ttm0BxqTAaro",
+  "theme": "apigee-api-engineer",
+  "status": [
+    "staged"
+  ],
+  "category": [
+    "Apigee/API Engineer"
+  ],
+  "tags": [
+    "kiosk",
+    "web"
+  ],
+  "feedback": "https://github.com/apigee/alfa/issues/new?title=[edge-sso-adfs-nee]:\u0026labels[]=content-platform\u0026labels[]=apigee",
+  "ga": "UA-143092999-1",
+  "url": "edge-sso-adfs-nee"
+}

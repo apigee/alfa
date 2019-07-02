@@ -1,0 +1,695 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>KVM Cache Firestore Target Server</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="UA-143092999-1"
+                  id="edge-dev-kvm-cache-firestore"
+                  title="KVM Cache Firestore Target Server"
+                  environment="web"
+                  feedback-link="https://github.com/apigee/alfa/issues/new?title=[edge-dev-kvm-cache-firestore]:&amp;labels[]=content-platform&amp;labels[]=apigee">
+    
+      <google-codelab-step label="Introduction" duration="2">
+        <p>The purpose of this lab is to be a reasonable complexity collection of policies that a novice developer can comprehend to be able to demonstrate advanced techniques of proxy authoring.</p>
+<h2 is-upgraded>What to Expect</h2>
+<ul>
+<li>Realistic collection of policies working in concert</li>
+<li>Manipulations with KVM, Cache</li>
+<li>Integration with Firestore/Google OpenID Connect</li>
+<li>Firestore batch processing</li>
+<li>Understanding sequence of policies with conditions as Flow Charts</li>
+</ul>
+<h2 is-upgraded>The User Case</h2>
+<p>The lab assumes an enterprise customer ESB Tibco backend. If an error is caused by incoming request, ESB would return a &#39;technical&#39; Tibco-specific code. Edge proxy would take this code and convert it into a client-application friendly error code(s), unified across API Platform project. </p>
+<p>The Assign Message policy at the beginning of the lab hard-code a test backend error code, and put processing sequence of policies into a proxy endpoint request preflow event. This way we can trigger the execution by using built-in http GET request button of the Tracing facility.</p>
+<p>The lab uses Firestore database as a persistent storage. Being a Google product, it uses OIDC for Authentication and Authorisation of access to Firestore API services. In this way, the lab also is an OAuth/OIDC client that exposes students to <em>yet another</em> example of OAuth usage, which helps to build hands-on experience required when discussing OAuth topic.</p>
+<p>The Lab has a flow chart diagram that illustrates  execution flow of the proxy.</p>
+<h2 is-upgraded>Products and URLs</h2>
+<p>Beware of what URL you are using while executing the lab. Each solution component has UI and API hostnames. They also have their own conventions to represent a hierarchies of object domains. For example, for Edge that would be organization and environment; for Firestore project: database and document respectively.</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p><strong>Product</strong></p>
+</td><td colspan="1" rowspan="1"><p><strong>UI</strong></p>
+</td><td colspan="1" rowspan="1"><p><strong>API</strong></p>
+<p><strong>Org/Env or Project</strong></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Edge</strong></p>
+</td><td colspan="1" rowspan="1"><p><a href="https://login.apigee.com" target="_blank">https://<strong>enterprise.apigee.com</strong></a></p>
+</td><td colspan="1" rowspan="1"><p><a href="https://api.enterprise.apigee.com" target="_blank">https://<strong>api.enterprise.apigee.com</strong></a></p>
+<p>/v1/o/<strong>dbcjd</strong>/e/<strong>test</strong></p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>Firestore</strong></p>
+</td><td colspan="1" rowspan="1"><p><a href="https://console.firebase.google.com" target="_blank">https://<strong>console.firebase.google.com</strong></a></p>
+</td><td colspan="1" rowspan="1"><p><a href="https://firestore.googleapis.com" target="_blank">https://<strong>firestore.googleapis.com</strong></a></p>
+<p>/v1beta1/projects/<strong>dbclabs</strong>/databases/(default)/documents/</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p><strong>GCP IAM</strong></p>
+</td><td colspan="1" rowspan="1"><p><a href="https://console.cloud.google.com" target="_blank">https://<strong>console.cloud.google.com</strong></a></p>
+</td><td colspan="1" rowspan="1"><p><a href="https://accounts.google.com/o/oauth2" target="_blank">https://<strong>accounts.google.com</strong>/o/oauth2</a></p>
+<p>/iam-admin/iam/project?project=dbclabs-yl</p>
+</td></tr>
+</table>
+<h2 is-upgraded>Prerequisites</h2>
+<p>[ ] Apigee Trial org</p>
+<p>[ ] Firebase Trial org</p>
+<p>[ ] Postman</p>
+<google-codelab-survey survey-id="edge-dev-kvm-cache-firestore-1">
+<h4>How will you use this tutorial?</h4>
+<paper-radio-group>
+<paper-radio-button>Only read through it</paper-radio-button>
+<paper-radio-button>Read it and complete the exercises</paper-radio-button>
+</paper-radio-group>
+<h4>How would you rate your experience with Google Cloud Platform?</h4>
+<paper-radio-group>
+<paper-radio-button>Novice</paper-radio-button>
+<paper-radio-button>Intermediate</paper-radio-button>
+<paper-radio-button>Proficient</paper-radio-button>
+</paper-radio-group>
+</google-codelab-survey>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Provisioning your Firestore instance" duration="2">
+        <p>0. Login into your Google Account</p>
+<p>1. Navigate to <a href="https://console.firebase.google.com" target="_blank">https://console.firebase.google.com</a></p>
+<p>2. Chose + Add Project</p>
+<p class="image-container"><img style="width: 148.00px" src="img/6e52a94c27949e95.png"></p>
+<p>3. Enter a project name and country/region</p>
+<aside class="special"><p><strong>NOTE:</strong> The Project ID field is unique across all Firebase project space. Customise your project name, if you want Project name and project ID to stay the same.</p>
+</aside>
+<p><strong>Project ID: </strong><code>dbclabs-yl</code></p>
+<p><strong>Country/region:</strong> United Kingdom</p>
+<p class="image-container"><img style="width: 228.69px" src="img/926efd4f7da89dc0.png"></p>
+<p>The Firebase goes through the steps of:</p>
+<ul>
+<li>Creating your project</li>
+<li>Provisioning resources</li>
+<li>Finishing up</li>
+</ul>
+<p class="image-container"><img style="width: 137.50px" src="img/b6be85f099bada60.png"></p>
+<p>4. When your new project is ready, press Continue</p>
+<p>5. In the left-side menu, chose <strong><code>DEVELOP</code></strong>, click on Database item.</p>
+<p class="image-container"><img style="width: 491.28px" src="img/d926e3257171022c.png"></p>
+<p>6. You are provided with a choice of Realtime Database or Firestore. Click on TRY FIRESTORE BETA button.</p>
+<p>The Security rules for Cloud Firestore dialog will open.</p>
+<p>7. Select Start in test mode radio-button. Click on ENABLE.</p>
+<p class="image-container"><img style="width: 328.50px" src="img/4c1bcec9129299e.png"></p>
+<p>After the Firestore instance is created, the Database Editor is open.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Defining Firestore Collection and Using JWT Token to Fetch Documents" duration="8">
+        <h2 is-upgraded>Defining errorcodesmap Document Collection</h2>
+<p>1. Click on <strong>+ ADD COLLECTION</strong> link.</p>
+<p>2. Enter the <code>errorcodesmap</code> as a new collection name</p>
+<p class="image-container"><img style="width: 293.66px" src="img/d53c62dda3f7803d.png"></p>
+<p>2. Press <strong>NEXT</strong> button to create first document.</p>
+<p>3. Fill the document form. Add new fields by pressing on the + round button</p>
+<p><code>Document id: </code><strong><code>EAI-BNK-BRK-00209</code></strong></p>
+<p><code>Field: &#34;</code><strong><code>eaierrordesc</code></strong><code>&#34;, Type: string, Value: &#34;</code><strong><code>DetectionID has no alerts</code></strong><code>&#34;</code></p>
+<p><code>Field: &#34;</code><strong><code>oaperrorcode</code></strong><code>&#34;, Type: string, Value: &#34;</code><strong><code>OAP-00209</code></strong><code>&#34;</code></p>
+<p><code>Field: &#34;</code><strong><code>oaperrordesc</code></strong><code>&#34;, Type: string, Value: &#34;</code><strong><code>DetectionID has no alerts</code></strong><code>&#34;</code></p>
+<p class="image-container"><img style="width: 281.29px" src="img/8072634d2b187f6a.png"></p>
+<p>4. Click on the <strong>SAVE</strong> button. </p>
+<p>The Document will be saved and displayed.</p>
+<p class="image-container"><img style="width: 457.50px" src="img/a1cc7b0f99d691d4.png"></p>
+<h2 is-upgraded>Google OpenID Connect Service Account</h2>
+<p>Google implements OAuth 2.0 for authentication, which conforms to the OpenID Connect specification. </p>
+<p>To interact with our Firestore instance in a server-to-server mode using REST API, we need to have a service Account that we can use to obtain OAuth 2.0 access_token.</p>
+<p>The OAuth 2.0 for Service Accounts Flow we are going to use is documented here:</p>
+<p><a href="https://developers.google.com/identity/protocols/OAuth2ServiceAccount" target="_blank">https://developers.google.com/identity/protocols/OAuth2ServiceAccount</a></p>
+<p class="image-container"><img style="width: 194.25px" src="img/980fab389a1924fe.png"></p>
+<p>1. Open <strong>Users and permissions</strong> console by selecting a cog next to the <strong>Project Overview </strong>left-side menu item. Click on the <strong>Users and Permissions</strong> menu item. </p>
+<p class="image-container"><img style="width: 285.50px" src="img/54eddc2421a8e820.png"></p>
+<p>2. When the <strong>Settings</strong> page opens, click at the <strong>Advanced permissions settings</strong> external link in the bottom right part of the screen to open the <strong>Google IAM</strong> page in a separate browser tab.</p>
+<p class="image-container"><img style="width: 525.99px" src="img/29b0857043805564.png"></p>
+<p>We are redirected now to the Google Cloud console web page for your Firebase project, ie.,  <code>dbclabs-yl</code>. </p>
+<aside class="warning"><p><strong>WARNING:</strong> Accept Updates to Terms of Service, if presented.</p>
+</aside>
+<p class="image-container"><img style="width: 289.50px" src="img/c0e8dc95efd47cb8.png"></p>
+<p>Notice the default service account ID, dbclabs-yl@appspot.gserviceaccount.com .</p>
+<p>3. Click on the <strong>Service accounts</strong> left-side menu item. In the maintenance menu of the service account, select <strong>Create key</strong> item.</p>
+<p class="image-container"><img style="width: 602.00px" src="img/6133d0d7bcd0c00f.png"></p>
+<p>4. Chose <strong>JSON</strong> key type. Click on <strong>CREATE</strong>.</p>
+<p class="image-container"><img style="width: 311.50px" src="img/6244a3be6201dfbd.png"></p>
+<p>5. The private key will be generated and automatically downloaded to your computer.</p>
+<p class="image-container"><img style="width: 208.50px" src="img/76fa1a2cad6db3cc.png"></p>
+<p>Close the <strong>CLOSE</strong> button. </p>
+<p>We can close the <strong>IAM Console</strong> tab now.</p>
+<p>6. In your working labs folder (ie, <strong><code>~/dbc</code></strong>), create a folder <code>iam</code> and copy the private key json file there. </p>
+<h2 is-upgraded>Create and Sign JWT Manually</h2>
+<p>1. Navigate to the <a href="https://jwt.io/" target="_blank">https://jwt.io/</a> page.</p>
+<p>A sample JWT token with HS256 Algorithm will open. </p>
+<p class="image-container"><img style="width: 365.50px" src="img/c80c48411e470792.png"></p>
+<p>2. Chose <strong>RS256</strong> algorithm. </p>
+<p>3. Leave default value in the <strong>HEADER: ALGORITHM &amp; TOKEN TYPE</strong> field:</p>
+<pre><code>{
+  &#34;alg&#34;: &#34;RS256&#34;,
+  &#34;typ&#34;: &#34;JWT&#34;
+}</code></pre>
+<p>4. Open the JSON key file in your preferred editor. We need some values for private key and public certificate.</p>
+<pre>$ cat dbclabs-yl-49bd8182ea2e.json 
+
+{
+  &#34;type&#34;: &#34;service_account&#34;,
+  &#34;project_id&#34;: &#34;dbclabs-yl&#34;,
+  &#34;private_key_id&#34;: &#34;49bd8182ea2ecc89e4d90b9b96a3d96394f24dfc&#34;,
+  &#34;private_key&#34;: &#34;-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCwdWsPrdtCTc
+....
+X9XgJULADML+7l\nAwf5t/WTtn9NVmKhUnVlikokMniC3UpJ3Sm+pvleZi6+ce5lmMX/tDoAwf54vM0+\n69Ixq1m6e6ImBWtpU1AB4auOtsCLah76nt92s0T7euZ5YH2bxEWF37+/16Q7YTyL\ncEn6HqVjwHa6ixIuoMh3FNfm\n-----END PRIVATE KEY-----\n&#34;,
+  &#34;client_email&#34;: &#34;dbclabs-yl@appspot.gserviceaccount.com&#34;,
+  &#34;client_id&#34;: &#34;111243874671647848429&#34;,
+  &#34;auth_uri&#34;: &#34;https://accounts.google.com/o/oauth2/auth&#34;,
+  &#34;token_uri&#34;: &#34;https://accounts.google.com/o/oauth2/token&#34;,
+  &#34;auth_provider_x509_cert_url&#34;: &#34;https://www.googleapis.com/oauth2/v1/certs&#34;,
+  &#34;client_x509_cert_url&#34;: &#34;https://www.googleapis.com/robot/v1/metadata/x509/dbclabs-yl%40appspot.gserviceaccount.com&#34;
+}</pre>
+<p>5. Prepare epoch Timestamp values. Open <a href="https://www.epochconverter.com/" target="_blank">https://www.epochconverter.com/</a> site.</p>
+<p>Change <strong>Hr</strong> field to the next hour.</p>
+<p class="image-container"><img style="width: 276.50px" src="img/a8f3c1c04fb83b56.png"></p>
+<p>Make a note of the current Unix epoch time and the one-hour-ahead epoch time. </p>
+<p>6. Populate <strong>PAYLOAD: DATA</strong> field</p>
+<p>You need to edit some values accordingly:</p>
+<p><strong>Issue:</strong> iss, &lt;your-service-account-id&gt;</p>
+<p><strong>Scope:</strong> scope, for your Firestore database instance access</p>
+<p><strong>Audience:</strong> aud, googleapis token endpoint</p>
+<p><strong>Token Expiration time:</strong> exp, the one-hour-ahead epoch value from the previous step</p>
+<p><strong>Issued At:</strong> iat, current Unix epoch time from the previous step.</p>
+<pre><code>{
+  &#34;iss&#34;: &#34;dbclabs-yl@appspot.gserviceaccount.com&#34;,
+  &#34;scope&#34;: &#34;https://www.googleapis.com/auth/datastore&#34;,
+  &#34;aud&#34;: &#34;https://www.googleapis.com/oauth2/v4/token&#34;,
+  &#34;exp&#34;: 1518204843,
+  &#34;iat&#34;: 1518201246
+} </code></pre>
+<p>7. Paste the <code>private_key</code> from your json file into the <code>Private Key (RSA)</code> field of the <strong>jwt.io</strong> form.</p>
+<aside class="special"><p><strong>NOTE:</strong> Use your preferred text editor to convert \n characters into proper end-of-lines</p>
+</aside>
+<p>8. Use <code>client_x509_cert_url</code> field value from the .json document with your private key to open URL with your project public certificates, i.e.: </p>
+<p><strong>https://www.googleapis.com/robot/v1/metadata/x509/dbclabs-yl%40appspot.gserviceaccount.com</strong></p>
+<p>9. Use <strong>private_key_id</strong> value to identify correct public certificate.</p>
+<p class="image-container"><img style="width: 479.50px" src="img/c029ce15a47e8daf.png"></p>
+<p>10. Paste the Public Certificate from the previous step into the <strong>jwt.io </strong><code>Public Key or Certificate</code> field.</p>
+<aside class="special"><p><strong>NOTE:</strong> Use your preferred text editor to convert \n characters into proper end-of-lines</p>
+</aside>
+<p class="image-container"><img style="width: 424.50px" src="img/621143bc352b9c91.png"></p>
+<p>Observer the <strong>Signature Verified</strong> blue validation result.</p>
+<p>11. Make a note of the JWT token from the <strong>Encoded</strong> field.</p>
+<pre><code>eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkYmNsYWJzQGFwcHNwb3QuZ3NlcnZpY2VhY2NvdW50LmNvbSIsInNjb3BlIjoiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYXV0aC9kYXRhc3RvcmUiLCJhdWQiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9vYXV0aDIvdjQvdG9rZW4iLCJleHAiOjE1MTgyMDQ4NDMsImlhdCI6MTUxODIwMTI0Nn0.cRxRBvKVPZSPBHpO6MtiDeO8LILqcWq8k1mYfBTg4yO7sBqC8DyzU6SfuU9g3Q-ZMA6cbxsWWPVJ_qOd_HTWBGI0QKkJ8Fcm7dXuTHrCKW0tRmuNUKPqqNnTAR8Fw0VJSHcnCmFf1ONlg1PQ7tNfmsFp0aTAb794kesk4CCP3SsT3VI2FsZixFVGUfpu6fccpTrofe6xAj4MdWUrCkEtmLD03CA6tn0Bk3yvU_r7qgWL42EpfMj8IKUWDGpOFjUBlrRzC59MGeGQrc8KIrDExOPiQPpmG-FSWKjjgGv1naKGDC00yO9pb-28piUKBIYj0FMIJJ2utBpTMirsispN6w</code></pre>
+<h2 is-upgraded>Use JWT to Obtain Access Token</h2>
+<p>1. Create a new <strong>POST</strong> request in Postman</p>
+<p>2.  Use <a href="https://www.googleapis.com/oauth2/v4/token" target="_blank">https://www.googleapis.com/oauth2/v4/token</a> endpoint</p>
+<p>3. In the request <strong>Body</strong> tab, select <strong>x-www-form-urlencoded</strong> radio-button.</p>
+<p>4. In the form fields, create <strong>grant_type</strong> Key with <strong>urn:ietf:params:oauth:grant-type:jwt-bearer </strong>value</p>
+<p>5. In the form fields, create <strong>assertion</strong> Key with your JWT token as a value.</p>
+<p>6. Send the request.</p>
+<p class="image-container"><img style="width: 491.50px" src="img/3c2811afb69a62ff.png"></p>
+<p>The access_token value will be returned amongst other fields.</p>
+<pre><code>{
+    access_token&#34;: &#34;ya29.c.ElpdBdHZ0PRbkjD-3Ur4CTwkCRHm5GRypDaXRZzPCSsElZSWs5EyLu8iR3yD-wlsECfVhD1faphMKkcWGdCFzcWe6Qo5_Igkg-Jez6ojwYm5l1YayPj0GdQ3I-U&#34;,
+    &#34;token_type&#34;: &#34;Bearer&#34;,
+    &#34;expires_in&#34;: 3600
+}
+</code></pre>
+<h2 is-upgraded>Fetching Single Document Using Firestore REST API </h2>
+<p>1. In Postman prepare <strong>GET</strong> request to the document URL:</p>
+<p><a href="https://firestore.googleapis.com/v1beta1/projects/dbclabs/databases/(default)/documents/errorcodesmap/EAI-BNK-BRK-00209" target="_blank">https://firestore.googleapis.com/v1beta1/projects/dbclabs-yl/databases/(default)/documents/errorcodesmap/EAI-BNK-BRK-00209</a></p>
+<p>2. Select <strong>Authorization</strong> tab of the request and chose <strong>Bearer Token</strong> type. Enter the <code>access_token</code> obtained from Google Authorization server into the <strong>token</strong> field.</p>
+<p>3. Execute request, click on the Send button.</p>
+<p class="image-container"><img style="width: 452.74px" src="img/2685cbb8ccfc5165.png"></p>
+<h2 is-upgraded>Batched Write to the Collection to Create Multiple Documents</h2>
+<p>1. In the Postmen, create a new <strong>POST</strong> request to the </p>
+<p><a href="https://firestore.googleapis.com/v1beta1/projects/dbclabs/databases/(default)/documents:commit" target="_blank">https://firestore.googleapis.com/v1beta1/projects/dbclabs-yl/databases/(default)/documents:commit</a> </p>
+<p>endpoint.</p>
+<p>2. In the <strong>Authorization</strong> tab of the request, choose <strong>Type Bearer</strong> and enter a valid <code>access_token</code></p>
+<p class="image-container"><img style="width: 602.00px" src="img/8eea0b12f9f6a359.png"></p>
+<p>3. In the <strong>Body</strong> tab of the request, select <strong>row</strong> radio-button and chose <strong>JSON (application/json) </strong>type combo-box value</p>
+<p class="image-container"><img style="width: 426.50px" src="img/6d24da4fbfd3d2f8.png"></p>
+<p>4. Populate the body of the request with the batch of the update writes to insert three new documents.</p>
+<aside class="warning"><p><strong>NOTE:</strong> Do not forget to fix the name of your Firestore project.</p>
+</aside>
+<pre><code>{
+    &#34;writes&#34;: [
+        {
+            &#34;update&#34;: {
+                &#34;name&#34;: &#34;projects/dbclabs-yl/databases/(default)/documents/errorcodesmap/EAI-BNK-BRK-00210&#34;,
+                &#34;fields&#34;: {
+                    &#34;oaperrordesc&#34;: {
+                        &#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;
+                    },
+                    &#34;oaperrorcode&#34;: {
+                        &#34;stringValue&#34;: &#34;OAP-00210&#34;
+                    },
+                    &#34;eaierrordesc&#34;: {
+                        &#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;
+                    }
+                }
+            }
+        },
+        {
+            &#34;update&#34;: {
+                &#34;name&#34;: &#34;projects/dbclabs-yl/databases/(default)/documents/errorcodesmap/EAI-BNK-BRK-00211&#34;,
+                &#34;fields&#34;: {
+                    &#34;oaperrordesc&#34;: {
+                        &#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;
+                    },
+                    &#34;oaperrorcode&#34;: {
+                        &#34;stringValue&#34;: &#34;OAP-00211&#34;
+                    },
+                    &#34;eaierrordesc&#34;: {
+                        &#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;
+                    }
+                }
+            }
+        },
+        {
+            &#34;update&#34;: {
+                &#34;name&#34;: &#34;projects/dbclabs-yl/databases/(default)/documents/errorcodesmap/EAI-BNK-BRK-00212&#34;,
+                &#34;fields&#34;: {
+                    &#34;oaperrordesc&#34;: {
+                        &#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;
+                    },
+                    &#34;oaperrorcode&#34;: {
+                        &#34;stringValue&#34;: &#34;OAP-00212&#34;
+                    },
+                    &#34;eaierrordesc&#34;: {
+                        &#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;
+                    }
+                }
+            }
+        }
+    ]
+}</code></pre>
+<p>5. Press <strong>Send</strong> to execute request. </p>
+<p>You will get a list of write results timestamps as well as a commit time.</p>
+<p class="image-container"><img style="width: 349.50px" src="img/bc88f9c3bdab9993.png"></p>
+<h2 is-upgraded>Firestore Query Request </h2>
+<p>Let&#39;s create a structured query that fetches all documents whose <code>eaierrordesc</code> field is equal to the <code>&#34;DetectionID has no alerts&#34;</code> field value.</p>
+<p>As we currently have 4 records with this duplicate value, we expect 4 documents to be returned.</p>
+<p>1. In the Postman, send a <strong>POST</strong> request to the <code>:runQuery</code> endpoint </p>
+<p><a href="https://firestore.googleapis.com/v1beta1/projects/dbclabs-yl/databases/(default)/documents:runQuery" target="_blank">https://firestore.googleapis.com/v1beta1/projects/dbclabs-yl/databases/(default)/documents:runQuery</a></p>
+<p>2. Define <strong>Bearer</strong> token with active <code>access_token</code> value.</p>
+<p>3. Define body of <code>application/json</code> type with content of the structuredQuery object.</p>
+<pre><code>{
+    &#34;structuredQuery&#34;: {
+        &#34;where&#34; : {
+            &#34;fieldFilter&#34; : { 
+                &#34;field&#34;: {&#34;fieldPath&#34;: &#34;eaierrordesc&#34;}, 
+                &#34;op&#34;:&#34;EQUAL&#34;, 
+                &#34;value&#34;: {&#34;stringValue&#34;: &#34;DetectionID has no alerts&#34;}
+            }
+        },
+        &#34;from&#34;: [{&#34;collectionId&#34;: &#34;errorcodesmap&#34;}]
+    }
+}</code></pre>
+<p>4. Execute the request to fetch the list of selected documents.</p>
+<p class="image-container"><img style="width: 559.21px" src="img/5d3a71dec65d800b.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Firestore Cache KVM Proxy" duration="3">
+        <p>Now let&#39;s create an Edge proxy that takes a Target system error code and converts it into  our company&#39;s API Platform error code. To make the proxy more responsive, we will be storing the fetched instance of the <strong>errorcodemaps</strong> collection in the cache on retrieval.</p>
+<p>Also, let&#39;s put our Firestore credentials into the KVM as well, so we can change them without changing and  re-deploying the code.</p>
+<p>While performing ServiceCallout calls to the Firestore, we want to configure a Target Server object with specific hostname and port values of the Firestore instance.</p>
+<h2 is-upgraded>Create No Target proxy</h2>
+<p>As we are processing an error code returned by the backend, eventually, the collection of policies we are creating will be located in a response flow. To improve our edit-deploy-trace loop, we are going to define our policies in the <strong>PreFlow</strong> event of the <strong>Proxy Endpoint</strong> and the first policy will hard-code a test value, so that we can just press the <strong>Send</strong> button of the Tracing facility to execute the proxy.</p>
+<p>1. In the Edge UI, <strong>API Proxies</strong> page, click <strong>+ API Proxy</strong> button.</p>
+<p>2. On the <strong>Build a Proxy TYPE</strong> page of the <strong>Add API Proxy</strong> wizard select <strong>No Target</strong> radio button. Press <strong>Next</strong>.</p>
+<p>2. Fill the proxy properties form of the <strong>DETAILS</strong> wizard page </p>
+<p>Proxy Name: <strong>firestorecache</strong></p>
+<p>The Proxy Base Path will be auto populated. <strong>Next</strong>.</p>
+<p>3. On a <strong>SECURITY</strong> page, choose <strong>Authorization Pass through (none) </strong>radio button. <strong>Next</strong>.</p>
+<p>4. On <strong>VIRTUAL HOSTS</strong> wizard page, leave default and secure check boxes checked. <strong>Next</strong>.</p>
+<p>5. On the <strong>BUILD</strong> wizard page confirm that test checkbox is selected. Click on the <strong>Build and Deploy</strong> button.</p>
+<p class="image-container"><img style="width: 440.17px" src="img/c8a2bdb9e321ee0f.png"></p>
+<p>6. The proxy is a) Generated; b) Uploaded and c) Deployed. Click on the <strong>firestorecache</strong> link to open the proxy editor.</p>
+<p class="image-container"><img style="width: 577.84px" src="img/2ff892b05cee1a77.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create and Populate Firestore Private Key KVM Value" duration="7">
+        <p>1. From the main menu, select <strong>APIs/Environment Configuration</strong> item.</p>
+<p>2. By default the <strong>prod</strong> environment is active. Select <strong>test</strong> environment from the environment combobox.</p>
+<p>3. Choose <strong>Key Value Maps</strong> tab.</p>
+<p>4. Click on the <strong>+ Key Value Map</strong> button. Enter <strong>Firestore</strong> as a name of a new KVM. Press <strong>Add</strong>.</p>
+<p class="image-container"><img style="width: 636.21px" src="img/18ea04f7f4ed06eb.png"></p>
+<h2 is-upgraded>Setting up Multiline value of KVM Entry</h2>
+<p>1. In the Postman, configure a new <strong>GET</strong> request to the Management API URL, pointing to the Firestore KVM of your org and test environment. </p>
+<p>https://api.enterprise.apigee.com/v1/o/<strong>dbcedge-eval</strong>/e/<strong>test</strong>/keyvaluemaps/<strong>Firestore</strong></p>
+<p>2. In the <strong>Authorization</strong> tab of the request, enter your <strong>Username email</strong> and <strong>Password</strong> of your org for the <strong>Basic Auth</strong> type.</p>
+<p>3. Execute request. There are no entries defined yet.</p>
+<p class="image-container"><img style="width: 602.00px" src="img/2402496dc663799c.png"></p>
+<p>4. Convert the request to <strong>POST</strong>. </p>
+<p>5. Edit the URL by appending /entries</p>
+<p>6. Add or make sure that the Headers <code>Content-Type</code> value is set to <code>application/json</code></p>
+<p class="image-container"><img style="width: 602.00px" src="img/346f7ee06513b7c4.png"></p>
+<p>7. Set the <strong>Body</strong> of the request to the value of your private key, copied-and-pasted from your .json file with \n end-of-line escape characters.</p>
+<p class="image-container"><img style="width: 602.00px" src="img/38d52ff7ecc20444.png"></p>
+<p>8. Execute the request. The response body will be populated with the multi-line value.</p>
+<p>9. Check that the value is present by refreshing <strong>test&#39;s Environment Configuration</strong> and opening <strong>Firestore</strong> entry in the <strong>Key Value Maps</strong> tab.</p>
+<p class="image-container"><img style="width: 401.50px" src="img/460e88cd433d58d1.png"></p>
+<h2 is-upgraded>Configure Target Server Definition</h2>
+<p>1. Make sure that you are working against <strong>test</strong> environment.</p>
+<p>2. Select <strong>Target Servers</strong> tab.</p>
+<p>3. Press the <strong>Edit</strong> button.</p>
+<p>4. Press the <strong>+ Target Server</strong> button.</p>
+<p>5. Populate configuration for the new server</p>
+<p><strong>        Name:</strong> Firestore</p>
+<p><strong>        Host:</strong> firestore.googleapis.com</p>
+<p><strong>        Port:</strong> 443</p>
+<p><strong>        Enables:</strong> checked</p>
+<p class="image-container"><img style="width: 482.50px" src="img/caaced2336e3bbf7.png"></p>
+<p>6. Press the <strong>Save</strong> button.</p>
+<p>As we are going to use <code>https</code> connection, we need to switch on <strong>SSLInfo Enabled</strong> flag for our target server.</p>
+<aside class="special"><p><strong>For Details,</strong> see: http://docs.apigee.com/management/apis/post/organizations/%7Borg_name%7D/environments/%7Benv_name%7D/targetservers</p>
+</aside>
+<p>7. Open the Postman and execute <strong>GET</strong> request to the API management to fetch current definition of the <strong>Firestore</strong> target server</p>
+<p><strong>        Method:</strong> GET</p>
+<p><strong>        URL: </strong><a href="https://api.enterprise.apigee.com/v1/o/dbcedge-eval/e/test/targetservers/Firestore" target="_blank">https://api.enterprise.apigee.com/v1/o/dbcedge-eval/e/test/targetservers/Firestore</a></p>
+<p><strong>        Authorization Type:</strong> Basic Auth</p>
+<p><strong>                Username:</strong> &lt;email&gt;</p>
+<p><strong>                Password:</strong> &lt;password&gt;</p>
+<p>Press the <strong>Send</strong> button to execute the query.</p>
+<p class="image-container"><img style="width: 542.50px" src="img/ae1b0bbc4ef1087b.png"></p>
+<p>8. To change target server configuration, change request&#39;s Method to <strong>POST</strong>.</p>
+<p>9. Copy the body of the <strong>GET</strong> response, click on the <strong>Body</strong> of the request, and paste it into the request body field. Make sure that the Postman request <strong>Body</strong> type is set to <strong>raw</strong>. </p>
+<p>10. Change the type of the body to <strong>application/json</strong>.</p>
+<p>11. Edit the body by appending the &#34;port&#34;: 443 line by:</p>
+<pre>,
+        &#34;sSLInfo&#34;: {
+            &#34;enabled&#34;: true 
+        }</pre>
+<p class="image-container"><img style="width: 364.50px" src="img/aed5b1f37c7cff36.png"></p>
+<p>12. Execute request by pressing <code>Cmd+Enter</code>. Successful response should look like:</p>
+<p class="image-container"><img style="width: 487.50px" src="img/fd3858e1cc6150b5.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Policies to Fetch Access Token for Firestore Session" duration="8">
+        <p>1. Switch to <strong>APIs/API Proxis</strong>. Open <strong>firestorecache</strong> proxy in <strong>DEVELOP</strong> tab.</p>
+<p>2. In the <strong>Flow: PreFlow</strong> diagrammer, click on the <strong>+ Step</strong> button on the right above <strong>REQUEST</strong> arrow.</p>
+<h2 is-upgraded>Fetch Firestore Private Key from the Firestore KVM</h2>
+<p>1. Select <strong>MEDIATION/Key Value Map Operations</strong> Policy. </p>
+<p>2. Enter <code>KeyValueMapOperations.GetFirestorePrivateKey</code> as a Display Name and Name properties. Click <strong>Add</strong>.</p>
+<p>3. Edit default XML template as follows:</p>
+<pre><code>&lt;KeyValueMapOperations async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;KeyValueMapOperations.GetFirestorePrivateKey&#34; mapIdentifier=&#34;Firestore&#34;&gt;
+    &lt;DisplayName&gt;KeyValueMapOperations.GetFirestorePrivateKey&lt;/DisplayName&gt;
+    &lt;Get assignTo=&#34;private.privatekey&#34;&gt;
+        &lt;Key&gt;
+            &lt;Parameter&gt;privatekey&lt;/Parameter&gt;
+        &lt;/Key&gt;
+    &lt;/Get&gt;
+    &lt;Scope&gt;environment&lt;/Scope&gt;
+&lt;/KeyValueMapOperations&gt;</code></pre>
+<p>4. Press <strong>Save</strong>. Agree to create a <strong>New Proxy Revision</strong>.</p>
+<p>5. As the new proxy revision was created, it is not deployed automatically. Click on <strong>Deployment</strong> combobox and press on the test item. Confirm by clicking on <strong>Deploy</strong> button.</p>
+<p class="image-container"><img style="width: 332.50px" src="img/a64a985eec09d043.png"></p>
+<h2 is-upgraded>Generate JWT Policy</h2>
+<p>1. In the <strong>Flow: PreFlow</strong> diagrammer of the <strong>DEVELOP</strong> tab, click on the <strong>+ Step</strong> button on the right above <strong>REQUEST</strong> arrow.</p>
+<p>2. In the <strong>SECURITY</strong> section, select the <strong>Generate JWT</strong> policy.</p>
+<p>3. Enter <code>GenerateJWT.CreateGoogleJWTToken</code> as Display Name and Name fields values.</p>
+<p class="image-container"><img style="width: 423.50px" src="img/4d07ccfcce81fe6.png"></p>
+<p>4. Replace the body of the policy with the following definition.</p>
+<aside class="warning"><p><strong>NOTE</strong>: use your Issuer email.</p>
+</aside>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;GenerateJWT async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;GenerateJWTCreateGoogleJWTToken&#34;&gt;
+    &lt;Algorithm&gt;RS256&lt;/Algorithm&gt;
+    &lt;IgnoreUnresolvedVariables&gt;false&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;PrivateKey&gt;
+        &lt;Value ref=&#34;private.privatekey&#34;/&gt;
+    &lt;/PrivateKey&gt;
+    &lt;Issuer&gt;dbclabs-yl@appspot.gserviceaccount.com&lt;/Issuer&gt;
+    &lt;Audience&gt;https://www.googleapis.com/oauth2/v4/token&lt;/Audience&gt;
+    &lt;ExpiresIn&gt;60m&lt;/ExpiresIn&gt;
+    &lt;Id/&gt;
+    &lt;AdditionalClaims&gt;
+        &lt;Claim name=&#34;scope&#34;&gt;https://www.googleapis.com/auth/datastore&lt;/Claim&gt;
+    &lt;/AdditionalClaims&gt;
+    &lt;OutputVariable&gt;flow.googleoauth.jwt&lt;/OutputVariable&gt;
+&lt;/GenerateJWT&gt;</code></pre>
+<p>5. Save the proxy.</p>
+<h2 is-upgraded>Test the JWT Token</h2>
+<p>1. Switch to the <strong>TRACE</strong> tab. Press <strong>Start Trace Session</strong> button.</p>
+<p>2. Click the <strong>Send</strong> button of the deployed <strong>GET</strong> request.</p>
+<p class="image-container"><img style="width: 312.50px" src="img/f817634169293d93.png"></p>
+<p>4. Uncheck <strong>Automatically Compare Selected Phase</strong> checkbox, so we can see variables of the selected policy.</p>
+<p>5. Open a <strong>jwt.io</strong> website and copy the contents of the <strong>flow.firestore.jwt</strong> variable into the <strong>Encoded</strong> field. </p>
+<p>6. Copy your Public Key into the Public Key or Certificate text field.</p>
+<p>7. Observe the <strong>Signature Verified</strong> message.</p>
+<p class="image-container"><img style="width: 324.50px" src="img/67faac0aa1d522ee.png"></p>
+<h2 is-upgraded>Populate Request Message to the Google OAuth Server</h2>
+<p>1. In the <strong>DEVELOP</strong> tab select <strong>MEDIATION/Assign Message</strong> Policy. </p>
+<p>2. Enter <code>AssignMessage.GoogleOAuthRequest</code> as a Display Name and Name properties. Click <strong>Add</strong>.</p>
+<p>3. Edit default XML template as follows:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AssignMessage.GoogleOAuthRequest&#34;&gt;
+    &lt;DisplayName&gt;AssignMessage.GoogleOAuthRequest&lt;/DisplayName&gt;
+    &lt;AssignTo createNew=&#34;true&#34; transport=&#34;https&#34; type=&#34;request&#34;&gt;flow.googleoauth.request&lt;/AssignTo&gt;
+    &lt;Set&gt;
+        &lt;FormParams&gt;
+            &lt;FormParam name=&#34;grant_type&#34;&gt;urn:ietf:params:oauth:grant-type:jwt-bearer&lt;/FormParam&gt;
+            &lt;FormParam name=&#34;assertion&#34;&gt;{flow.googleoauth.jwt}&lt;/FormParam&gt;
+        &lt;/FormParams&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/AssignMessage&gt;
+</code></pre>
+<p>4. Trace the proxy defined so far. Check the context variables.</p>
+<p class="image-container"><img style="width: 430.50px" src="img/67bf865e8a28224f.png"></p>
+<h2 is-upgraded>Call Google OAuth Server to Retrieve the Access Token</h2>
+<p>1. Add <strong>EXTENSION/Service Callout</strong> policy with <code>ServiceCallout.GetFirestoreAccessToken</code> Display Name and Name. Click <strong>Add</strong>.</p>
+<p>2. Edit the policy to look like:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;ServiceCallout async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;ServiceCallout.GetFirestoreAccessToken&#34;&gt;
+    &lt;DisplayName&gt;ServiceCallout.GetFirestoreAccessToken&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;Request clearPayload=&#34;true&#34; variable=&#34;flow.googleoauth.request&#34;&gt;
+        &lt;IgnoreUnresolvedVariables&gt;false&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;/Request&gt;
+    &lt;Response&gt;flow.googleoauth.response&lt;/Response&gt;
+    &lt;HTTPTargetConnection&gt;
+        &lt;Properties/&gt;
+        &lt;URL&gt;https://www.googleapis.com/oauth2/v4/token&lt;/URL&gt;
+    &lt;/HTTPTargetConnection&gt;
+&lt;/ServiceCallout&gt;</code></pre>
+<p> 3. Trace the proxy and observe the <code>access_token</code> in response json.</p>
+<p class="image-container"><img style="width: 437.50px" src="img/93ad8a6703b0fb23.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Extract access_token from Response into Variable" duration="3">
+        <p>1.  Add <strong>MEDIATION/Extract Variables</strong> policy with names: <code>ExtractVariables.FirestoreAccessToken</code>. <strong>Add</strong>. </p>
+<p>2. Define <strong>Extract Variables</strong> policy with the <code>JSONPath</code> expression to extract the <code>access_token</code></p>
+<pre><code>&lt;ExtractVariables async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;ExtractVariablesFirestoreAccessToken&#34;&gt;
+    &lt;DisplayName&gt;ExtractVariables.FirestoreAccessToken&lt;/DisplayName&gt;
+    &lt;Source&gt;flow.googleoauth.response&lt;/Source&gt;
+    &lt;JSONPayload&gt;
+        &lt;Variable name=&#34;flow.firestore.access_token&#34; type=&#34;string&#34;&gt;
+            &lt;JSONPath&gt;$.access_token&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+    &lt;/JSONPayload&gt;
+&lt;/ExtractVariables&gt;</code></pre>
+<p>3. Trace the policy and check the variable on context.</p>
+<h2 is-upgraded>Observe and analyse.</h2>
+<p>* Select Key Value Map Operations policy button.</p>
+<p>The variable <strong>private.privatekey</strong> is correctly populated from the <strong>Firestore</strong> KVM.</p>
+<p>* <strong>Service Callout </strong>policy trace reflects <strong>ServiceCallout.request</strong> and <strong>ServiceCallout.response</strong> variables values.</p>
+<p class="image-container"><img style="width: 622.75px" src="img/218cf45e73a0bda5.png"></p>
+<p>* <strong>ExtractVariables </strong>policy shows <code>flow.firestore.access_token</code> as a result of the JSON path expression execution.</p>
+<p class="image-container"><img style="width: 331.74px" src="img/e2252fbb9ca79c80.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Policies to Fetch Mapped Proxy Error Code" duration="6">
+        <h2 is-upgraded>Initialize test value for a backend error code</h2>
+<p>Let&#39;s populate a target error code variable value we will be looking for first.</p>
+<p>2. Add <strong>MEDIATION/Assign Message</strong> policy with names <code>AssignMessage.SetEAIErrorCode</code> and XML body:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AssignMessage.SetEAIErrorCode&#34;&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;flow.target.eaierrorcode&lt;/Name&gt;
+        &lt;Value&gt;EAI-BNK-BRK-00209&lt;/Value&gt;
+    &lt;/AssignVariable&gt;
+    &lt;DisplayName&gt;AssignMessage.SetEAIErrorCode&lt;/DisplayName&gt;
+&lt;/AssignMessage&gt;
+</code></pre>
+<p>3. As we created the policy last, it will be at the end of the sequence. Drag-and-drop it to the front.</p>
+<p class="image-container"><img style="width: 444.50px" src="img/a011228e84e94dc6.png"></p>
+<p>4. Save and Trace the proxy. The <code>flow.target.eaierrorcode</code> values should be correctly populated.</p>
+<p class="image-container"><img style="width: 448.50px" src="img/88f0bca2c353f410.png"></p>
+<h2 is-upgraded>Service Callout to Execute Document Fetch Request</h2>
+<p>1. Switch to the <strong>DEVELOP</strong> tab</p>
+<p>2. Add <strong>EXTENSION/Service Callout</strong> policy with <strong>ServiceCallout.GetFirestoreDocument</strong> name. and XML definition:</p>
+<pre><code>&lt;ServiceCallout async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;ServiceCalloutGetFirestoreDocument&#34;&gt;
+    &lt;DisplayName&gt;ServiceCallout.GetFirestoreDocument&lt;/DisplayName&gt;
+    Request clearPayload=&#34;true&#34;&gt;
+        &lt;Set&gt;
+            &lt;Headers&gt;
+                &lt;Header name=&#34;Authorization&#34;&gt; Bearer {flow.firestore.access_token}&lt;/Header&gt;
+            &lt;/Headers&gt;
+        &lt;/Set&gt;
+    &lt;/Request&gt;
+    &lt;Response&gt;flow.firestore.response&lt;/Response&gt;
+    &lt;HTTPTargetConnection&gt;
+        &lt;LoadBalancer&gt;
+            &lt;Server name=&#34;Firestore&#34;/&gt;
+        &lt;/LoadBalancer&gt;
+        Path&gt;/v1beta1/projects/dbclabs-yl/databases/(default)/documents/errorcodesmap/{flow.target.eaierrorcode}&lt;/Path&gt;
+    &lt;/HTTPTargetConnection&gt;
+&lt;/ServiceCallout&gt;</code></pre>
+<p class="image-container"><img style="width: 476.32px" src="img/f90324b5dd86fb00.png"></p>
+<p>3. Save and Trace the proxy.</p>
+<p>Check the response body value</p>
+<p class="image-container"><img style="width: 420.89px" src="img/1046113a76e94263.png"></p>
+<h2 is-upgraded>Extract Variables Policy to Extract Error Code Instance</h2>
+<p>1. Add <strong>MEDIATION/Extract Variables</strong> policy with name <code>ExtractVariables.OAPErrorCodeEntity</code> and XML definition:</p>
+<pre><code>&lt;ExtractVariables async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;ExtractVariables.OAPErrorCodeEntity&#34;&gt;
+    &lt;DisplayName&gt;ExtractVariables.OAPErrorCodeEntity&lt;/DisplayName&gt;
+    Source&gt;flow.firestore.response&lt;/Source&gt;
+    &lt;JSONPayload&gt;
+        Variable name=&#34;flow.target.eaierrorcode-entity&#34; type=&#34;string&#34;&gt;
+            JSONPath&gt;$&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+    &lt;/JSONPayload&gt;
+&lt;/ExtractVariables&gt;</code></pre>
+<h2 is-upgraded>Policy to Create Message Object Containing Error Code Mapping Instance</h2>
+<p>1. Add <strong>MEDIATION/Assign Message</strong> policy with names <code>AssignMessage.JSONtoMessage</code> and XML definition</p>
+<pre><code>&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AssignMessage.JSONtoMessage&#34;&gt;
+    &lt;DisplayName&gt;AssignMessage.JSONtoMessage&lt;/DisplayName&gt;
+    &lt;AssignTo createNew=&#34;true&#34; type=&#34;request&#34;&gt;flow.message.eaierrorcode-entity&lt;/AssignTo&gt;
+    &lt;Set&gt;
+        &lt;Payload contentType=&#34;application/json&#34;&gt;
+            {flow.target.eaierrorcode-entity}
+        &lt;/Payload&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>2. Add <strong>MEDIATION/Extract Variables</strong> policy with names <strong>ExtractVariables.GetOAPErrorCode</strong> and XML definition:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;ExtractVariables async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;ExtractVariables.GetOAPErrorCode&#34;&gt;
+    &lt;DisplayName&gt;ExtractVariables.GetOAPErrorCode&lt;/DisplayName&gt;
+    &lt;Source&gt;flow.message.eaierrorcode-entity&lt;/Source&gt;
+    &lt;JSONPayload&gt;
+        &lt;Variable name=&#34;flow.target.oaperrorcode&#34; type=&#34;string&#34;&gt;
+            &lt;JSONPath&gt;$.fields.oaperrorcode.stringValue&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+    &lt;/JSONPayload&gt;
+&lt;/ExtractVariables&gt;</code></pre>
+<h2 is-upgraded>Save, Deploy and Test the Flow</h2>
+<p>1. Press the <strong>Save</strong> button. Save as a new revision.</p>
+<p>2. Switch to <strong>TRACE</strong> tab. Press the <strong>Start Trace Session</strong> button.</p>
+<p>3. Click the <strong>Send</strong> button to execute <a href="http://dbcedge-eval-test.apigee.net/firestorecache" target="_blank">http://dbcedge-eval-test.apigee.net/firestorecache</a> <strong>GET</strong> request.</p>
+<h2 is-upgraded>Observe and Analyse</h2>
+<p>* The <code>AssignMessage.SetEAIErrorCode</code> policy initialises <code>flow.target.eaierrocode variable</code></p>
+<p class="image-container"><img style="width: 430.50px" src="img/ba7600373403108e.png"></p>
+<p>* <strong>ServiceCallout.GetFirestoreDocument</strong> response body contains Firestore document  JSON datagram with selected instance of the collection.</p>
+<p class="image-container"><img style="width: 414.50px" src="img/762e49bb09c4cafa.png"></p>
+<p>* <strong>ExtractVariables.OAPErrorCodeEntity</strong> has <code>flow.target.eaierrorcode-entity</code> JSON object, extracted from the returned Firestore document.</p>
+<p class="image-container"><img style="width: 381.50px" src="img/6baa899873df8503.png"></p>
+<p>* <strong>ExtractVariables.GetOAPErrorCode</strong> defines correct <code>flow.target.oaperrorcode</code> document fetched from the Firestore collection.</p>
+<p class="image-container"><img style="width: 350.50px" src="img/cf2b14afc9a2c159.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Adding Cache Processing" duration="8">
+        <h2 is-upgraded>Define Cache <code>eaierrorcodes</code></h2>
+<p>1. Switch to <strong>APIs/Environment Configuration</strong></p>
+<p>2. Select <strong>test</strong> environment. Make sure that <strong>Caches</strong> is an active tab.</p>
+<p>3. Click on the <strong>Edit</strong> button. Click on <strong>+ Cache</strong> button</p>
+<p>4. Populate Cache properties:</p>
+<p><strong>        Name: </strong>eaierrorcodes</p>
+<p><strong>        Description:</strong> EAI Error Codes</p>
+<p><strong>        Expiration Type:</strong> Timeout in Seconds</p>
+<p><strong>Expiration:</strong> 90000</p>
+<p>Click <strong>Save</strong></p>
+<p class="image-container"><img style="width: 492.50px" src="img/a7248ce8d9313039.png"></p>
+<h2 is-upgraded>Define Cache Processing for Error Code Mappings</h2>
+<p>1. In the Edge UI <strong>DEVELOP</strong> tab of the <code>firestorecache</code> <strong>proxy</strong> Add <strong>TRAFFIC MANAGEMENT/Lookup Cache</strong> policy with names <code>LookupCache.GetEAIErrorCode</code>. </p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;LookupCache async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;LookupCacheGetEAIErrorCode&#34;&gt;
+    &lt;DisplayName&gt;LookupCache.GetEAIErrorCode&lt;/DisplayName&gt;
+    &lt;CacheResource&gt;eaierrorcodes&lt;/CacheResource&gt;
+    &lt;CacheKey&gt;
+        &lt;KeyFragment ref=&#34;flow.target.eaierrorcode&#34;/&gt;
+    &lt;/CacheKey&gt;
+    &lt;AssignTo&gt;flow.target.eaierrorcode-entity&lt;/AssignTo&gt;
+&lt;/LookupCache&gt;</code></pre>
+<p>2. As it will be added at the end of the policy sequence, drag-and-drop the policy between <code>AssignMessage.SetEAIErrorCode</code> and <code>KeyValueMapOperations.GetFirestorePrivateKey</code>.</p>
+<p class="image-container"><img style="width: 458.50px" src="img/d142856e80c370cd.png"></p>
+<p>3. Add its counterpart, <strong>TRAFFIC MANAGEMENT/Populate Cache</strong> policy named <code>PopulateCache.SetEAIErrorCode</code> and XML definition:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;PopulateCache async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;PopulateCache.SetEAIErrorCode&#34;&gt;
+    &lt;Source&gt;flow.target.eaierrorcode-entity&lt;/Source&gt;
+    &lt;CacheKey&gt;
+        &lt;KeyFragment ref=&#34;flow.target.eaierrorcode&#34;/&gt;
+    &lt;/CacheKey&gt;
+    &lt;CacheResource&gt;eaierrorcodes&lt;/CacheResource&gt;
+    &lt;ExpirySettings&gt;
+        &lt;TimeoutInSec&gt;36000&lt;/TimeoutInSec&gt;
+    &lt;/ExpirySettings&gt;
+&lt;/PopulateCache&gt;</code></pre>
+<p>4. Drag-and-drop it between <code>ExtractVariables.OAPErrorCodeEntity</code> and <code>AssignMessageJSONtoMessage</code> policies.</p>
+<p class="image-container"><img style="width: 448.50px" src="img/e4cca7fa93fd4ad4.png"></p>
+<p>5. Add branching logic for bypassing cache if the value is found in the cache.</p>
+<p>In the Navigator click on <strong>Proxy Endpoints/default</strong> item. This action opens the <strong>Proxy Endpoint</strong> definition in the XML editor pane.</p>
+<p>6. In the editor, for steps between <code>KeyValueMapOperations.GetFirestorePrivateKey</code> and <code>PopulateCache.SetEAIErrorCode</code> inclusive, add condition element </p>
+<pre><code>                &lt;Condition&gt;lookupcache.LookupCacheGetEAIErrorCode.cachehit == false&lt;/Condition&gt;</code></pre>
+<p class="image-container"><img style="width: 423.50px" src="img/c5dca8bda9e7e5a4.png"></p>
+<p>This corresponds to the following flow chart:</p>
+<p class="image-container"><img style="width: 601.00px" src="img/979d9eb83055df2f.png"></p>
+<p>7. <strong>Save</strong>, <strong>Deploy</strong>.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="End-to-End Proxy Execution and Tracing" duration="8">
+        <p>1. In the <strong>TRACE</strong> tab with <strong>Start Trace Session</strong> switched on, execute the request by pressing the <strong>Start</strong> button.</p>
+<p class="image-container"><img style="width: 315.00px" src="img/b51719676cde67c9.png"></p>
+<p>Transaction Map would look like:</p>
+<p class="image-container"><img style="width: 602.00px" src="img/6b68d5dd2fddc52c.png"></p>
+<p>2. Press the <strong>Send</strong> button again. As this time the entity is read from the cache, the Transaction Map would like, indicating skipped steps:</p>
+<p class="image-container"><img style="width: 305.00px" src="img/d95f5343d27588ea.png"></p>
+<p class="image-container"><img style="width: 602.00px" src="img/1c292eb17f684b81.png"></p>
+<p>3. Go to <strong>APIs/Environment Configuration</strong>, Select environment <strong>test</strong> and <strong>Cashes</strong> tab.</p>
+<p>4. Invalidate cache <code>eaierrorcodes</code> by pressing its Clear button.</p>
+<p>5. Execute the request to the proxy again. This time Transaction Map will show that all steps are executed, none are skipped.</p>
+<p class="image-container"><img style="width: 602.00px" src="img/1d19821940c2c195.png"></p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-07-02T18:35:56Z",
+  "id": "edge-dev-kvm-cache-firestore",
+  "duration": 55,
+  "title": "KVM Cache Firestore Target Server",
+  "authors": "yuriyl@google.com",
+  "summary": "This lab introduces KVM, Cache, and JWT Apigee Edge policies as well as an integration with Google OIDC/OAuth Firestore nosql database.",
+  "source": "19Tmlv4163aZ7fkYjvaO0POz31VUw83c6lZH88N5YJvM",
+  "theme": "apigee",
+  "status": [
+    "staged"
+  ],
+  "category": [
+    "Apigee"
+  ],
+  "tags": [
+    "kiosk",
+    "web"
+  ],
+  "feedback": "https://github.com/apigee/alfa/issues/new?title=[edge-dev-kvm-cache-firestore]:\u0026labels[]=content-platform\u0026labels[]=apigee",
+  "ga": "UA-143092999-1",
+  "url": "edge-dev-kvm-cache-firestore"
+}

@@ -1,0 +1,454 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>JSON Sanitizer Java Callout Policy</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="UA-143092999-1"
+                  id="edge-dev-javacallout"
+                  title="JSON Sanitizer Java Callout Policy"
+                  environment="web"
+                  feedback-link="https://github.com/apigee/alfa/issues/new?title=[edge-dev-javacallout]:&amp;labels[]=content-platform&amp;labels[]=apigee">
+    
+      <google-codelab-step label="What to Expect" duration="2">
+        <p>The Codelab walks you through the experience of creating an Edge Java Callout for end-to-end experience using Eclipse as an IDE.</p>
+<ul>
+<li>End-to-End Java Development Workflow</li>
+<li>JMockit mock for Unit Testing of the Edge Java Callout</li>
+<li>Local Maven Repo dependencies</li>
+<li>Java Code that implements OWASP JSON Sanitizer module.</li>
+<li>Echo proxy that returns back passed Headers and Body</li>
+<li>JSON datagram sanitized by the policy</li>
+<li>Remote Debugging of Java Callout</li>
+</ul>
+<h2 is-upgraded>Prerequisites</h2>
+<ul>
+<li>Paid On-cloud or On-premises org</li>
+<li>Eclipse IDE</li>
+<li>Postman</li>
+</ul>
+<google-codelab-survey survey-id="edge-dev-javacallout-1">
+<h4>How will you use this tutorial?</h4>
+<paper-radio-group>
+<paper-radio-button>Only read through it</paper-radio-button>
+<paper-radio-button>Read it and complete the exercises</paper-radio-button>
+</paper-radio-group>
+<h4>How would you rate your experience with Google Cloud Platform?</h4>
+<paper-radio-group>
+<paper-radio-button>Novice</paper-radio-button>
+<paper-radio-button>Intermediate</paper-radio-button>
+<paper-radio-button>Proficient</paper-radio-button>
+</paper-radio-group>
+</google-codelab-survey>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creating Edge Dependencies in Local Maven Repository" duration="2">
+        <p>The repository contains Edge .jar file we need to compile and test our Java Callout.</p>
+<p><a href="https://github.com/apigee/api-platform-samples/tree/master/doc-samples/java-cookbook/lib" target="_blank">https://github.com/apigee/api-platform-samples/tree/master/doc-samples/java-cookbook/lib</a></p>
+<p>1. Copy <code>expressions-1.0.0.jar</code> and <code>message-flow-1.0.0.jar</code> to <code>~/projects/json-sanitizer-policy/edge-jar-library</code></p>
+<p>2. Install local copies of Edge dependencies</p>
+<pre>mvn install:install-file \
+   -Dfile=expressions-1.0.0.jar \
+   -DgroupId=com.apigee \
+   -DartifactId=expressions \
+   -Dversion=1.0.0 \
+   -Dpackaging=jar \
+   -DgeneratePom=true
+
+mvn install:install-file \
+   -Dfile=message-flow-1.0.0.jar \
+   -DgroupId=com.apigee \
+   -DartifactId=message-flow \
+   -Dversion=1.0.0 \
+   -Dpackaging=jar \
+   -DgeneratePom=true
+</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creating Maven Project Using quickstart Archetype" duration="2">
+        <p>1. Generate a Java project</p>
+<pre>mvn archetype:generate -DgroupId=com.apigee \
+-DartifactId=json-sanitizer-callout  \
+-DarchetypeArtifactId=maven-archetype-quickstart \
+-DinteractiveMode=false</pre>
+<p>2. In the generated <code>pom.xml</code> file, for junit dependency, change JUnit version from 3.8.1 to 4.12</p>
+<p>Change version from <code>1.0-SNAPSHOT</code> to <code>1.0</code>.</p>
+<p>3. Add Edge dependencies</p>
+<pre><code>&lt;dependency&gt;
+        &lt;groupId&gt;com.apigee&lt;/groupId&gt;
+        &lt;artifactId&gt;expressions&lt;/artifactId&gt;
+        &lt;version&gt;1.0.0&lt;/version&gt;
+        &lt;scope&gt;provided&lt;/scope&gt;
+    &lt;/dependency&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;com.apigee&lt;/groupId&gt;
+        &lt;artifactId&gt;message-flow&lt;/artifactId&gt;
+        &lt;version&gt;1.0.0&lt;/version&gt;
+        &lt;scope&gt;provided&lt;/scope&gt;
+    &lt;/dependency&gt;</code></pre>
+<p>4. Add <strong>json-sanitizer</strong> dependency.</p>
+<p>Go to <a href="https://search.maven.org/#artifactdetails%7Ccom.mikesamuel%7Cjson-sanitizer%7C1.1%7Cjar" target="_blank">https://search.maven.org/#artifactdetails%7Ccom.mikesamuel%7Cjson-sanitizer%7C1.1%7Cjar</a> and copy Apache Maven section of the Dependency Information to the <code>pom.xml</code> file</p>
+<pre><code>    &lt;dependency&gt;
+        &lt;groupId&gt;com.mikesamuel&lt;/groupId&gt;
+        &lt;artifactId&gt;json-sanitizer&lt;/artifactId&gt;
+        &lt;version&gt;1.1&lt;/version&gt;
+    &lt;/dependency&gt;</code></pre>
+<p>5. Add jmockit dependency for junit tests.</p>
+<pre><code>    &lt;dependency&gt;
+            &lt;groupId&gt;org.jmockit&lt;/groupId&gt;
+            &lt;artifactId&gt;jmockit&lt;/artifactId&gt;
+            &lt;version&gt;1.36&lt;/version&gt;
+            &lt;scope&gt;test&lt;/scope&gt;
+    &lt;/dependency&gt;</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Importing Maven Project into Eclipse" duration="5">
+        <p>1. Launch Eclipse.</p>
+<p>2. Select <strong>File/Import...</strong></p>
+<p>3. Select <strong>Maven/Existing Maven Project.</strong></p>
+<p>4. In the <strong>Import Maven Projects</strong> dialog, <strong>Maven Projects</strong> step, browse to the <strong>Root Directory</strong>.</p>
+<pre>~/projects/json-sanitizer-policy/json-sanitizer-callout</pre>
+<p>Select folder, click <strong>Open</strong> button.</p>
+<p class="image-container"><img style="width: 601.70px" src="img/6a1eaebf0400effa.png"></p>
+<p>5. Press <strong>Finish</strong> button to import the project.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Callout Code" duration="5">
+        <p>1. Right-click <strong>App.java</strong> class in the <code>src/main/java/com.apigee</code> package and select <strong>Delete</strong>.</p>
+<p>2. Right-click src/main/java source folder and select New/Class</p>
+<p>Change Package Name to: <code>com.apigee.jsonsanitizer</code></p>
+<p>Class name to: <code>JsonSanitizerCallout</code></p>
+<p>3. Click on <strong>Add...</strong> button on the right of Interfaces list. Select <strong>Execution</strong> from <code>com.apigee.flow.execution.spi</code> package.</p>
+<p class="image-container"><img style="width: 430.50px" src="img/a92b6f49e5ea8923.png"></p>
+<p>4. Press <strong>Finish</strong>.</p>
+<p>5. Type in the code of the <strong>JsonSanitizerCallout </strong><code>execute()</code> method implementation.</p>
+<aside class="special"><p><strong>NOTE:</strong> Notice, that we change the default names of the parameters to more readable ones.</p>
+</aside>
+<pre><code>package com.apigee.jsonsanitizer;
+package com.apigee.jsonsanitizer;
+
+import com.apigee.flow.execution.ExecutionContext;
+import com.apigee.flow.execution.ExecutionResult;
+import com.apigee.flow.execution.spi.Execution;
+import com.apigee.flow.message.MessageContext;
+import com.google.json.JsonSanitizer;
+
+public class JsonSanitizerCallout implements Execution {
+
+    public ExecutionResult execute(MessageContext messageContext, ExecutionContext executionContext) {
+
+
+        try{
+                        String contentType = messageContext.getMessage().getHeader(&#34;Content-Type&#34;);
+                        if( !(contentType  == null) &amp;&amp; contentType.toLowerCase().endsWith(&#34;json&#34;) ){
+                        String request = messageContext.getMessage().getContent();
+        
+                                        String json = JsonSanitizer.sanitize(request);
+
+                        messageContext.getMessage().setContent(json);
+                                        messageContext.getRequestMessage().setHeader(&#34;Content-Length&#34;, json.length());
+                        }
+                return  ExecutionResult.SUCCESS;
+        }catch( Exception e ){
+                return  ExecutionResult.ABORT;
+        }
+
+    }
+}</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Unit Test Code" duration="5">
+        <p>1. Right-click <code>AppTest.java</code><strong> </strong>class in the <code>src/test/java/com.apigee</code> package and select <strong>Delete</strong>.</p>
+<p>2. Right-click <code>src/test/java</code> source folder and select <strong>New/Class</strong></p>
+<p>Change Package Name to: <code>com.apigee.jsonsanitizer</code></p>
+<p>Class name to: <code>JsonSanitizerCalloutTest</code></p>
+<p>3. Press <strong>Finish</strong>.</p>
+<p>4. Type in the code of the JUnit callout test class.</p>
+<pre><code>package com.apigee.jsonsanitizer;
+
+import static org.junit.Assert.*;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import mockit.Mock;
+import mockit.MockUp;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.apigee.flow.execution.ExecutionContext;
+import com.apigee.flow.message.MessageContext;
+
+public class JsonSanitizerCalloutTest {
+
+        
+        MessageContext messageContext;
+        ExecutionContext executionContext;
+        
+        @Before
+        public void testSetup(){
+                messageContext = new MockUp&lt;MessageContext&gt;() {
+                        private Map&lt;String,Object&gt; variables;
+                        
+                        public void $init(){
+                                getVariables();
+                        }
+                        
+                        private Map&lt;String,Object&gt; getVariables(){
+                                if( variables == null){
+                                        variables = new HashMap&lt;String,Object&gt;();
+                                }
+                                return variables;
+                        }
+                        
+                        @Mock
+                        public Object getVariable(final String name){
+                                return getVariables().get(name);
+                        }
+                        
+                        @Mock
+                        public boolean setVariable(final String name, final Object value){
+                                getVariables().put(name, value);
+                                return true;
+                        }
+                }.getMockInstance();
+                
+                executionContext = new MockUp&lt;ExecutionContext&gt;(){}.getMockInstance();
+        }
+        
+        @Test
+        public void sanitizeMessageContent(){
+                messageContext.setVariable(&#34;message.content&#34;,  &#34;{\r\n&#34; + 
+                                &#34;        \&#34;header\&#34;:{\r\n&#34; + 
+                                &#34;                \&#34;version\&#34;:\&#34;1.0\&#34;,\r\n&#34; + 
+                                &#34;                \&#34;serviceName\&#34;:\&#34;IPPEligibility\&#34;,\r\n&#34; + 
+                                &#34;                \&#34;timestamp\&#34;:\&#34;2016-05-29 09:39:16\&#34;,\r\n&#34; + 
+                                &#34;                \&#34;uniqueRefNo\&#34;:\&#34;12&lt;1212\&#34;,\r\n&#34; + 
+                                &#34;                \&#34;orgID\&#34;:\&#34;EBI\&#34;\r\n&#34; + 
+                                &#34;        },\r\n&#34; + 
+                                &#34;    \&#34;ippEligibilityReq\&#34;:: {\r\n&#34; + 
+                                &#34;        \&#34;creditCardNo\&#34;: \&#34;fAFopAArD+6BXMzQqk+yI9d3V2bX77vbiFqF3jckNNY=\&#34;,\r\n&#34; + 
+                                &#34;        \&#34;merchantId\&#34;: \&#34;31442\&#34;,\r\n&#34; + 
+                                &#34;        \&#34;amount\&#34;: \&#34;1000\&#34;\r\n&#34; + 
+                                &#34;    }\r\n&#34; + 
+                                &#34;}\r\n&#34; + 
+                                &#34;&#34;);
+                
+                JsonSanitizerCallout callout = new JsonSanitizerCallout();
+                
+                callout.execute(messageContext, executionContext);
+                
+                assertEquals(3,4);
+        }
+}
+
+</code></pre>
+<p>5. Right-click project and select <strong>Run As/JUnit Test</strong></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Package the json-sanitizer Project" duration="5">
+        <p>1. In the <code>pom.xml</code> file add section to package the jar file with dependencies</p>
+<pre><code>        &lt;build&gt;
+                &lt;finalName&gt;${artifactId}-${version}&lt;/finalName&gt;
+                &lt;plugins&gt;
+                        &lt;plugin&gt;
+                                &lt;artifactId&gt;maven-assembly-plugin&lt;/artifactId&gt;
+                                &lt;version&gt;2.6&lt;/version&gt;
+                                &lt;configuration&gt;
+                                        &lt;descriptorRefs&gt;
+                                                &lt;descriptorRef&gt;jar-with-dependencies&lt;/descriptorRef&gt;
+                                        &lt;/descriptorRefs&gt;
+                                        &lt;appendAssemblyId&gt;false&lt;/appendAssemblyId&gt;
+                                &lt;/configuration&gt;
+                                &lt;executions&gt;
+                                        &lt;execution&gt;
+                                                &lt;id&gt;make-assembly&lt;/id&gt;
+                                                &lt;phase&gt;package&lt;/phase&gt;
+                                                &lt;goals&gt;
+                                                        &lt;goal&gt;single&lt;/goal&gt;
+                                                &lt;/goals&gt;
+                                        &lt;/execution&gt;
+                                &lt;/executions&gt;
+                        &lt;/plugin&gt;
+                &lt;/plugins&gt;
+        &lt;/build&gt;</code></pre>
+<p>2. Right-click the project and choose <strong>Run As/Maven Build...</strong></p>
+<p>3. Give it a nice name: <code>json-sanitizer-callout</code> package.</p>
+<p>4. Enter <code>package</code> as a goal into the <strong>Goals</strong> field.</p>
+<p class="image-container"><img style="width: 601.70px" src="img/a882a09771e36a7e.png"></p>
+<p>5. Press <strong>Run</strong>.</p>
+<p>The resultant <code>.jar</code> file will be generated and placed in the project target directory.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create JSON Sanitizer-enabled Proxy" duration="10">
+        <h2 is-upgraded>Define No Target Proxy</h2>
+<p>1. In <strong>APIs/API Proxies</strong>, select <strong>+ API Proxy</strong> button.</p>
+<p>2. In the <strong>Build Proxy</strong> wizard, select proxy type <strong>No Target</strong> Radio button. Press <strong>Next</strong>.</p>
+<p>3. Enter <code>json-sanitizer</code> Proxy Name field value in the <strong>DETAILS</strong>. Click <strong>Next</strong></p>
+<p class="image-container"><img style="width: 601.70px" src="img/469207190a74aabb.png"></p>
+<p>4. In the <strong>SECURITY</strong> page of the wizard, chose <strong>Pass through (none) </strong>radio-button option. Click <strong>Next</strong></p>
+<p class="image-container"><img style="width: 601.70px" src="img/c0042a506f80ee04.png"></p>
+<p>1. In the <strong>VIRTUAL HOSTS</strong>, make sure that <strong>default</strong> vhost is selected.</p>
+<p class="image-container"><img style="width: 556.00px" src="img/5380feef3e2ece2c.png"></p>
+<p>2. In the <strong>BUILD</strong> page of the wizard, make sure that the proxy is deployed into the test environment.</p>
+<p class="image-container"><img style="width: 535.00px" src="img/5ba186a12643f16.png"></p>
+<p>3. Click <strong>Build and Deploy</strong> button.</p>
+<p>The proxy will be generated, uploaded, and deployed to the test env.</p>
+<p class="image-container"><img style="width: 601.70px" src="img/67563a65676aa979.png"></p>
+<p>4. Click on the <code>json-sanitizer</code> link to open the editor.</p>
+<h2 is-upgraded>Add Echo Assign Message Policy</h2>
+<p>1. Activate <strong>DEVELOP</strong> tab of the proxy editor.</p>
+<p>2. In the Navigator view, select the <strong>PostFlow</strong> item of the default proxy in the <strong>Proxy Endpoints</strong> section.</p>
+<p>3. Click on the <strong>+ Step</strong> button on the left side of the <strong>Flow: PostFlow</strong> diagrammer below <strong>RESPONSE</strong> arrow.</p>
+<p>4. In the <strong>Add Step</strong> dialog, select <strong>Assign Message</strong> policy in the <strong>MEDIATION</strong> section.</p>
+<p>5. Populate <strong>Display Name</strong> and <strong>Name</strong> fields as <code>AssignMessage.Echo</code>. </p>
+<p class="image-container"><img style="width: 601.70px" src="img/64e4ce6fd9e4566d.png"></p>
+<p>Click <strong>Add</strong>.</p>
+<p>6. Define the <strong>AssignMessage.Echo</strong> policy as:</p>
+<pre><code>&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AssignMessage.Echo&#34;&gt;
+    &lt;DisplayName&gt;AssignMessage.Echo&lt;/DisplayName&gt;
+    &lt;Copy source=&#34;request&#34;/&gt;
+    &lt;AssignTo createNew=&#34;false&#34; transport=&#34;http&#34; type=&#34;response&#34;/&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p class="image-container"><img style="width: 601.70px" src="img/498495757d943c1f.png"></p>
+<p>7. Click <strong>Save</strong> button to save and deploy the proxy.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Test the Echo Functionality" duration="0">
+        <p>1. In the PostMan, execute <strong>POST</strong> request to the <a href="http://apigee-cs-test.apigee.net/json-sanitizer" target="_blank">http://apigee-cs-test.apigee.net/json-sanitizer</a> endpoint passing the <code>application/json</code> body:</p>
+<pre><code>{&#34;xx&#34;:&#34;&lt;script&gt;alert(1)&lt;/script&gt;&#34;, &#34;yy&#34;: &#39;yyy&#39;,&#34;ar&#34;:[0,,2]}</code></pre>
+<p>It will return the same body, i.e., echo the request into response.</p>
+<pre><code>{&#34;xx&#34;:&#34;&lt;script&gt;alert(1)&lt;/script&gt;&#34;, &#34;yy&#34;: &#39;yyy&#39;,&#34;ar&#34;:[0,,2]}</code></pre>
+<p class="image-container"><img style="width: 500.00px" src="img/c3c5969fb088882f.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Add JSON Sanitizer Policy" duration="0">
+        <p>1. In the <strong>DEVELOP</strong> tab of the editor, select <strong>PreFlow</strong> of the default <strong>Proxy Endpoint</strong>.</p>
+<p>2. Click on the <strong>+ Step</strong> button on the right of the <strong>Flow: PreFlow</strong> editor above <strong>REQUEST</strong> arrow.</p>
+<p>3. In the <strong>Add Step</strong> dialog, select <strong>Java Callout</strong> from the <strong>EXTENSION</strong> section. Give it a <code>JavaCallout.JSONSanitizer</code> name and display name.</p>
+<p>4. Click on <strong>Choose File</strong> button and select <code>json-sanitizer-callout-1.0.jar</code> file. The <strong>Script Name</strong> field fill be automatically populated by the <code>.jar</code> file name.</p>
+<p class="image-container"><img style="width: 440.75px" src="img/c93ca89a0200edb1.png"></p>
+<p>Click <strong>Add</strong>.</p>
+<p>5. In the opened <strong>JavaCallout.JSONSanitizer</strong> policy editor, enter correct class name that implements <code>Execution.execute()</code> interface method.</p>
+<p class="image-container"><img style="width: 601.70px" src="img/da6d45de0ef814f6.png"></p>
+<p>ResourceURL: <code>json-sanitizer-callout-1.0.jar</code></p>
+<p>ClassName: <code>com.apigee.jsonsanitizer.JsonSanitizerCallout</code></p>
+<p>6. Click on <strong>Save</strong> button to save and deploy the proxy.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Test Request" duration="5">
+        <p>1. Execute the <strong>POST</strong> request to the proxy endpoint <a href="http://apigee-cs-test.apigee.net/json-sanitizer" target="_blank">http://apigee-cs-test.apigee.net/json-sanitizer</a></p>
+<p>Pre-policy invocation Body:</p>
+<pre><code>{&#34;xx&#34;:&#34;&lt;script&gt;alert(1)&lt;/script&gt;&#34;, &#34;yy&#34;: &#39;yyy&#39;,&#34;ar&#34;:[0,,2]}</code></pre>
+<p>This time the result will look differently, as OWASP json-sanitizer will sanitize and secure the JSON datagram in the request body.</p>
+<p>Post-policy invocation Body:</p>
+<pre>{&#34;xx&#34;:&#34;
+&lt;script&gt;alert(1)&lt;\/script&gt;&#34;, &#34;yy&#34;: &#34;yyy&#34;,&#34;ar&#34;:[0,null,2]}</pre>
+<p class="image-container"><img style="width: 498.51px" src="img/c3c5969fb088882f.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="OPDK: Remote Debugging of Java Callout" duration="10">
+        <p>Unless your Java Callout contains a couple of lines, it is good to be able to debug it.  Mocking permits you conveniently debug most if not all code with your local development environment. Saying that, it is important to be able to debug a callout in context of a real Message Processor. Java remote debugging facility permits you to do this. Of course, you need an access to an OPDK environment to be able to reconfigure Message Processor JVM process. Usually, All-In-One installation of Edge provides perfect isolated development environment.</p>
+<h2 is-upgraded>Turning On JVM Debug Mode</h2>
+<p>1. On an MP node, <code>add debug_port=8000</code> by editing or creating <code>message-processor.properties</code> file</p>
+<pre># vi /opt/apigee/customer/application message-processor.properties
+
+debug_port=8000</pre>
+<p>2. Restart MP component</p>
+<pre>apigee-service edge-message-processor restart</pre>
+<p>3. Verify that debug setting is activated. Look for the <code>-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,a</code></p>
+<p><code>ddress=8000 signature.</code></p>
+<pre># ps -eaf|grep 8000
+
+apigee    4224     1  0 07:30 ?        00:04:23 /usr/lib/jvm/jre/bin/java -classpath /opt............var/log/edge-message-processor -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,a
+ddress=8000 com.apigee.kernel.MicroKernel
+</pre>
+<p>This setting provides you with an ability to attach and detach to a process under debugging at any point of time.</p>
+<h2 is-upgraded>Setting up Debugging Configuration</h2>
+<p>1. In the <strong>Eclipse</strong>, select <strong>Run/Debug Configurations...</strong> menu item. </p>
+<p>2. In the left-side pane, select <strong>Remote Java Application</strong> line.</p>
+<p>3. Right-click it and choose <strong>New Configuration</strong> context-menu item.</p>
+<p>4. Enter <code>java-sanitizer-callout</code> as Name.</p>
+<p>5. Click on <strong>Browse...</strong> button in the <strong>Project</strong> section and select <code>java-sanitizer-callout</code> project.</p>
+<p>6. In the <strong>Connection Properties</strong> section enter IP address of your MP node and port <code>8000</code>.</p>
+<p class="image-container"><img style="width: 266.50px" src="img/2d7057956fbf51.png"></p>
+<p>7. Click <strong>Apply</strong> and <strong>Close</strong>.</p>
+<h2 is-upgraded>Remote Debugging Session</h2>
+<p>1. In the <code>JsonSanitizerCallout.java</code> file, double-click on line 22 gutter to flip a breakpoint.</p>
+<p class="image-container"><img style="width: 448.50px" src="img/a650b515eb1c0e09.png"></p>
+<p>2. Select <strong>Run/Debug Configuration...</strong> menu item. </p>
+<p>3. Select <strong>Remote Java Application/java-sanitizer-callout</strong> configuration at the left side of the dialog.</p>
+<p>4. Click <strong>Debug</strong> button to initiate remote debug session.</p>
+<p>The Eclipse will switch to the <strong>Debug Perspective</strong> and attach itself to the running Message Processor instance. You will see all threads of MP&#39;s JVM.</p>
+<p class="image-container"><img style="width: 224.50px" src="img/6bd5b686d1b01bed.png"></p>
+<p>5. Initiate an http request to the <strong>json-sanitizer proxy</strong>.</p>
+<p>You are stopped at the breakpoint and can inspect any variables of the current state.</p>
+<p class="image-container"><img style="width: 602.00px" src="img/a3ea98c250e71186.png"></p>
+<p>6. Click at the <strong>Step Into (F5)</strong>, <strong>Step Over(F6)</strong>, or <strong>Resume (F8)</strong> button to continue execution.</p>
+<p>7. The request processing is continued as appropriate.</p>
+<p>8. Select <strong>Run/Disconnect</strong> menu item to detach the remote debugger from the live process.</p>
+<aside class="warning"><p>Do not forget to remove or comment out debug_port=8000 and restart MP after you finish your debugging.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="BONUS SECTION. Deploy Java Callout Policy jar into org" duration="2">
+        <p>1. Execute a <strong>POST</strong> request in <strong>Postman</strong> to deploy <code>.jar</code> file of Java Callout policy using Management API</p>
+<p><a href="https://api.enterprise.apigee.com/v1/o/apigee-cs/resourcefiles?name=CustomJSONSanitiser.jar&type=java" target="_blank">https://api.enterprise.apigee.com/v1/o/apigee-cs/resourcefiles?name=json-sanitizer-callout-1.0.jar&amp;type=java</a></p>
+<p class="image-container"><img style="width: 601.70px" src="img/baf144e6378991a1.png"></p>
+<p>2. To check, send the <strong>GET</strong> request to return the contents of org-level resource files collection, by calling URL</p>
+<p><a href="https://api.enterprise.apigee.com/v1/o/apigee-cs/resourcefiles?name=CustomJSONSanitiser.jar&type=java" target="_blank">https://api.enterprise.apigee.com/v1/o/apigee-cs/resourcefiles</a></p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,1248 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Apigee Edge. Ops Labs. Advanced: Apigee Edge SSO with ADFS</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="UA-143092999-1"
+                  id="edge-sso-adfs-nee"
+                  title="Apigee Edge. Ops Labs. Advanced: Apigee Edge SSO with ADFS"
+                  environment="web"
+                  feedback-link="https://github.com/apigee/alfa/issues/new?title=[edge-sso-adfs-nee]:&amp;labels[]=content-platform&amp;labels[]=apigee">
+    
+      <google-codelab-step label="Introduction and Prerequisites" duration="3">
+        <p>The lab is a collection of step-by-step tasks to:</p>
+<ul>
+<li>setup aio edge on GCP</li>
+<li>create a windows server instance</li>
+<li>install and setup AD and ADFS on that instance</li>
+<li>add apigee-sso on aio node</li>
+<li>setup second edge node with new Edge UI </li>
+<li>integrate them</li>
+</ul>
+<h2 is-upgraded>Audience and Usage Notes</h2>
+<p>Although not required, to make the experience more smooth you better to have a trial GCP project. if you&#39;re using Googler GCP project, you better use Private Network IP addresses due to firewall enforcer. In case of a standard GCP project or QWIKLabs environment, use firewall rules to open required ports as per optional instructions section... </p>
+<p>This lab is self-sufficient. Empty Google project as a starting point. No assumptions of Edge pre-installed components.</p>
+<p>If you are a beginner in Linux Administration/Edge installation, it is recommended to get an access to the GCP project. If you know what you&#39;re doing, you can start with any 2  CentOs/RedHat nodes and a Windows box for AD/FS installation.</p>
+<p>You can also use this lab for installing SSO/NEE on top of existing Edge topology or  troubleshooting existing installation.</p>
+<aside class="warning"><p><strong>LINKS:</strong> Apigee troubleshooting page. Operations Guide</p>
+<p><a href="https://docs.apigee.com/api-platform/troubleshoot/troubleshooting-guide-pdf" target="_blank">https://docs.apigee.com/api-platform/troubleshoot/troubleshooting-guide-pdf</a></p>
+</aside>
+<h2 is-upgraded>Prerequisites:</h2>
+<ul>
+<li>GCP project</li>
+<li>Apigee rpm repo credentials</li>
+<li>Apigee Edge license</li>
+<li>RDP client</li>
+</ul>
+<google-codelab-survey survey-id="edge-sso-adfs-nee-1">
+<h4>How will you use this tutorial?</h4>
+<paper-radio-group>
+<paper-radio-button>Only read through it</paper-radio-button>
+<paper-radio-button>Read it and complete the exercises</paper-radio-button>
+</paper-radio-group>
+<h4>How would you rate your experience with Google Cloud Platform?</h4>
+<paper-radio-group>
+<paper-radio-button>Novice</paper-radio-button>
+<paper-radio-button>Intermediate</paper-radio-button>
+<paper-radio-button>Proficient</paper-radio-button>
+</paper-radio-group>
+</google-codelab-survey>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Part 1. Edge 19.01 AIO Install" duration="20">
+        <p>1. Open <a href="https://console.cloud.google.com/" target="_blank">https://console.cloud.google.com</a>. Click on Activate Cloud Shell button.</p>
+<p>2. Define useful environment variables at your workstation terminal window</p>
+<pre><code>export ZONE_ID=europe-west1-b
+export PROJECT_ID=&lt;your-project-id&gt;
+export APIGEE_SERVICE_ACCOUNT=apigee-sa
+export JUMPBOX=jumpbox
+
+gcloud config set compute/zone $ZONE_ID</code></pre>
+<p>3. Create service account for cluster management cluster</p>
+<p>For details: <a href="https://cloud.google.com/iam/docs/understanding-service-accounts" target="_blank">https://cloud.google.com/iam/docs/understanding-service-accounts</a></p>
+<aside class="special"><p><strong>NOTE:</strong> to delete instance:</p>
+<p>gcloud compute instances delete jumpbox</p>
+</aside>
+<pre><code>gcloud iam service-accounts create $APIGEE_SERVICE_ACCOUNT --display-name &#34;Apigee Edge Service Account&#34;
+
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=&#34;serviceAccount:$APIGEE_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com&#34; --role=&#39;roles/iam.serviceAccountUser&#39;
+
+gcloud projects add-iam-policy-binding $PROJECT_ID --member serviceAccount:$APIGEE_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com --role roles/compute.admin</code></pre>
+<p>4. Create jumpbox node we are going to use as Bastion Host</p>
+<p><a href="https://cloud.google.com/solutions/connecting-securely#bastion" target="_blank">https://cloud.google.com/solutions/connecting-securely#bastion</a></p>
+<pre><code>gcloud compute instances create $JUMPBOX --image-family=centos-7 --image-project=centos-cloud --scopes=cloud-platform --service-account=$APIGEE_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com </code></pre>
+<p>5. If not yet, open Compute Engine/VM Instances menu in console and click on SSH Combo-box button to open ssh session to the jumpbox and define environment</p>
+<p class="image-container"><img style="width: 624.00px" src="img/2e93f40eab37f40a.png"></p>
+<aside class="special"><p><strong>NOTE:</strong> you can use gcloud compute ssh command in your terminal window as well:</p>
+<p><code>gcloud compute ssh $JUMPBOX</code></p>
+</aside>
+<p>6. Define environment variable in jumpbox session</p>
+<pre><code>export PROJECT_ID=&lt;your-project-id&gt;
+export ZONE_ID=europe-west1-b
+gcloud config set compute/zone $ZONE_ID</code></pre>
+<p>7. Create nodes for all-in-one Apigee Edge OPDK instance, <code>exco-aio</code> and another node for New Edge Experience components, <code>exco-nee</code>.</p>
+<pre><code>gcloud compute instances create --image-family=centos-7 --image-project=centos-cloud --machine-type=n1-standard-4 --boot-disk-size=25GB exco-aio
+
+gcloud compute instances create --image-family=centos-7 --image-project=centos-cloud --machine-type=n1-standard-4 --boot-disk-size=25GB exco-nee</code></pre>
+<p>8. In the console, click on REFRESH button to Validate list of VM instances. </p>
+<p class="image-container"><img style="width: 624.00px" src="img/590e0ce31429857b.png"></p>
+<p>9. Setup ssh passwordless key for an admin user called  <code>edge</code>, which is an identity we are going to use to manage nodes.</p>
+<aside class="warning"><p>Correct expiry date timestamp appropriately below.</p>
+</aside>
+<pre><code>sudo yum install -y jq
+
+ssh-keygen -t rsa -f ~/.ssh/edge -C edge -q -N &#34;&#34;
+
+SSH_KEYS=`gcloud compute project-info describe --format=json | jq -r &#39;.commonInstanceMetadata.items[] | select( .key== &#34;ssh-keys&#34;) | .value&#39;`
+
+EDGE_SSH_KEY=`cat ~/.ssh/edge.pub | awk &#39;{print &#34;edge:&#34; $1 &#34; &#34; $2  &#34; google-ssh {\&#34;userName\&#34;:\&#34;edge\&#34;,\&#34;expireOn\&#34;:\&#34;2019-12-30T20:12:00+0000\&#34;}&#34;}&#39;`
+                                                                                                                                                             
+gcloud compute project-info add-metadata  --no-user-output-enabled --metadata-from-file ssh-keys=&lt;( echo -e &#34;$SSH_KEYS\n$EDGE_SSH_KEY&#34; )</code></pre>
+<p>11. In the Console, open Compute Engine/Metadata. Select SSH Keys tab and locate the key you just created.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/d4f8103c4932bdc8.png"></p>
+<p>11. Add following line the <code>~/.ssh/config</code> file for the ssh passwordless configuration.</p>
+<pre><code>Host exco-aio
+    User edge
+    IdentityFile ~/.ssh/edge
+Host exco-nee
+    User edge
+    IdentityFile ~/.ssh/edge</code></pre>
+<p>11. Set up <code>rw</code> for user only permissions on <code>~/.ssh/config</code></p>
+<pre><code>sudo chmod 600 ~/.ssh/config</code></pre>
+<h2 is-upgraded>Set up Edge Classic at exco-aio</h2>
+<p>1. Ssh into exco-aio node. Accept exco-aio node fingerprint.</p>
+<pre><code>ssh exco-aio </code></pre>
+<p>Sync point. Verify that you are user <code>edge</code> at node <code>exco-aio</code>:</p>
+<pre>[yuriyl@jumpbox ~]$ ssh exco-aio
+Last login: Fri Jan 18 17:11:17 2019 from jumpbox.c.&lt;project-id&gt;.internal
+[edge@exco-aio ~]$</pre>
+<p>2. Verify that hostname returns single IPv4 address</p>
+<pre><code>$ hostname -i 
+
+10.132.0.3</code></pre>
+<p>3. Install utilities and setup apigee-install folder for user edge</p>
+<pre><code>sudo yum install -y mc nc wget
+
+sudo mkdir /opt/apigee-install
+sudo chown edge: /opt/apigee-install</code></pre>
+<aside class="warning"><p><strong>IMPORTANT: </strong>At this point you <strong>shall have access</strong> to the apigee rpm repositories and edge license file. </p>
+</aside>
+<p>4. Copy license file and rpm repo credentials file to the <code>/opt/apigee-install</code> folder.  This is a sample contents:</p>
+<pre><code>cat /opt/apigee-install/credentials.txt
+
+User: &lt;repo-user&gt;
+Password: &lt;repo-password&gt;</code></pre>
+<pre><code>cat /opt/apigee-install/license.txt
+
+WI...
+...
+...Q==</code></pre>
+<p>5. Define silent config file <code>edge-aio.cfg</code></p>
+<pre><code>cat &lt;&lt;EOT &gt; /opt/apigee-install/edge-aio.cfg 
+IP1=$(hostname -i)
+
+HOSTIP=&#34;\$IP1&#34; 
+ENABLE_SYSTEM_CHECK=n
+ADMIN_EMAIL=admin@exco.com 
+APIGEE_ADMINPW=Apigee123! 
+LICENSE_FILE=/opt/apigee-install/license.txt 
+MSIP=\$IP1 
+LDAP_TYPE=1 
+APIGEE_LDAPPW=Apigee123!
+MP_POD=gateway 
+REGION=dc-1 
+ZK_HOSTS=&#34;\$IP1&#34; 
+ZK_CLIENT_HOSTS=&#34;\$IP1&#34; 
+CASS_HOSTS=&#34;\$IP1&#34; 
+PG_PWD=postgres 
+
+SKIP_SMTP=y 
+SMTPMAILFROM=&#34;admin@exco.com&#34;
+EOT
+</code></pre>
+<p>6. Define <code>org/env/vhost provision</code> file</p>
+<pre><code>cat &lt;&lt;EOT &gt; /opt/apigee-install/edge-provision-org-env.cfg
+IP1=$(hostname -i)
+
+MSIP=\$IP1
+ADMIN_EMAIL=admin@exco.com
+APIGEE_ADMINPW=&#34;Apigee123!&#34;
+NEW_USER=&#34;y&#34;
+USER_NAME=orgadmin@exco.com
+FIRST_NAME=OrgAdminName
+LAST_NAME=OrgAdminLastName
+USER_PWD=Apigee123!
+ORG_NAME=org
+ORG_ADMIN=\$USER_NAME
+ENV_NAME=dev
+VHOST_PORT=9001
+VHOST_NAME=default
+VHOST_ALIAS=\${ORG_NAME}_\${ENV_NAME}.apigee.net
+USE_ALL_MPS=y
+EOT</code></pre>
+<p>8. Install openjdk version 8. </p>
+<pre><code>sudo yum -y install java-1.8.0-openjdk
+
+java -version</code></pre>
+<p>8. Temporarily reset SELinux into permissive mode</p>
+<pre><code>sudo setenforce 0</code></pre>
+<p>9. Bootstrap Edge and install apigee-setup</p>
+<pre><code>wget https://software.apigee.com/bootstrap_4.19.01.sh -O /opt/apigee-install/bootstrap_4.19.01.sh
+
+export REPO_CLIENT_ID=`awk &#39;/User:/{print $2}&#39; /opt/apigee-install/credentials.txt`
+export REPO_PASSWORD=`awk &#39;/Password:/{print $2}&#39; /opt/apigee-install/credentials.txt`
+
+
+sudo bash /opt/apigee-install/bootstrap_4.19.01.sh apigeeuser=$REPO_CLIENT_ID apigeepassword=$REPO_PASSWORD
+
+sudo /opt/apigee/apigee-service/bin/apigee-service apigee-setup install</code></pre>
+<p>10. Install Edge aio using edge-aio.cfg silent config file</p>
+<pre><code>sudo /opt/apigee/apigee-setup/bin/setup.sh -f /opt/apigee-install/edge-aio.cfg -p aio | tee /opt/apigee-install/edge-apigee-install-aio-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</code></pre>
+<p>10. Validate Edge AIO installation</p>
+<pre><code>/opt/apigee/apigee-service/bin/apigee-service apigee-validate install | tee /opt/apigee-install/edge-apigee-validate-install-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log
+
+/opt/apigee/apigee-service/bin/apigee-service apigee-validate install | tee /opt/apigee-install/edge-apigee-validate-setup-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log
+
+/opt/apigee/apigee-service/bin/apigee-service apigee-validate setup -f /opt/apigee-install/edge-aio.cfg | tee /opt/apigee-install/edge-apigee-validate-install-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</code></pre>
+<p>11. Provision org and env</p>
+<pre><code>/opt/apigee/apigee-service/bin/apigee-service apigee-provision setup-org -f /opt/apigee-install/edge-provision-org-env.cfg | tee /opt/apigee-install/edge-apigee-setup-org-install-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</code></pre>
+<h2 is-upgraded>Provisioning Windows Server</h2>
+<p>1.  Provision Windows Server 2016 instance exco-adfs</p>
+<pre><code>gcloud beta compute --project=$PROJECT_ID instances create exco-adfs --zone=$ZONE_ID --machine-type=n1-standard-2 --image=windows-server-2016-dc-v20181211 --image-project=windows-cloud --boot-disk-size=50GB --boot-disk-type=pd-standard --boot-disk-device-name=exco-adfs</code></pre>
+<p>2. Reset and make a note of your Windows password. You need it to login into Windows box, but also to supply ADFS credentials.</p>
+<p><code>gcloud compute reset-windows-password exco-adfs</code></p>
+<p>3. Configure MS RDP client desktop entry for user apigee_sa </p>
+<aside class="warning"><p><strong>NOTE:</strong> pay attention at the underscore in the user name that replaced dash character.</p>
+</aside>
+<p class="image-container"><img style="width: 208.50px" src="img/2cce24bd9031606c.png"></p>
+<p class="image-container"><img style="width: 205.99px" src="img/9c564be628711f06.png"></p>
+<p>4. Log into exco-adfs box, double-click at the exco-adfs desktop entry.</p>
+<p>5. In a browser, open Edge UI URL and use <a href="mailto:admin@exco.com" target="_blank">admin@exco.com</a>:Apigee123 credentials to log in.</p>
+<p>http://10.132.0.3:9000</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Part 2. Set Up AD DC and  AD FS" duration="20">
+        <p><strong>Reference Configuration Information:</strong></p>
+<p>Server Name: exco-adfs</p>
+<p>IP Address (ipconfig): 10.132.0.12 </p>
+<p>AD Forest: Exco.local</p>
+<p>Federation Service Name: adfs.exco.com</p>
+<p>DSRM Password: Apigee123!</p>
+<p>1. Log into exco-adfs box, double-click at the exco-adfs desktop entry.</p>
+<h2 is-upgraded>Installing the AD FS role</h2>
+<p>1. Using Server Manager. Dashboard open Add roles and features Wizard</p>
+<p>2. Check <img style="width: 126.59px" src="img/366bd2e9a395314.png">checkbox and press Next.</p>
+<p>3. In the Installation Type page, make sure that radiobutton: Role-based or feature-based installation is selected. Press Next</p>
+<p>4. At the Server Selection page, select  exco-adfs server. Next</p>
+<p class="image-container"><img style="width: 409.77px" src="img/1680b989fd48e54c.png"></p>
+<p>5. Check Active Directory Domain Services. In pop-up add prerequisites. </p>
+<p class="image-container"><img style="width: 440.50px" src="img/43eda2d1708c7f2b.png"></p>
+<p>Press Add features button.</p>
+<p>6. Next. Next.</p>
+<p>7. AD DS Page. Next</p>
+<p>8. Confirmation page. Install.</p>
+<p>9. Press Close button.</p>
+<h2 is-upgraded>Promoting Server to Domain Controller</h2>
+<p>1. In Notifications,</p>
+<p class="image-container"><img style="width: 504.50px" src="img/6807d63c4811940a.png"></p>
+<p> click Promote this server to a domain controller.</p>
+<p class="image-container"><img style="width: 444.00px" src="img/4ed8efe93d570998.png"></p>
+<p>2.  Select Add a new forest radiobutton. Specify Exco.local. Next</p>
+<p class="image-container"><img style="width: 389.50px" src="img/df7b97930a4d2463.png"></p>
+<p>3. Domain Controller Options. DSRM Password: Apigee123!</p>
+<p class="image-container"><img style="width: 459.64px" src="img/167b6ba12d3b76b3.png"></p>
+<p>4. Next. DNS delegation warning. Next.</p>
+<p class="image-container"><img style="width: 526.50px" src="img/90004b4f71cebd45.png"></p>
+<p>5. Additional Options. Make sure the default NetBIOS name is assigned. EXCO. Next.</p>
+<p class="image-container"><img style="width: 377.50px" src="img/5253d6342989995e.png"></p>
+<p>6. Paths. Accept defaults. Next</p>
+<p class="image-container"><img style="width: 447.50px" src="img/633978f23c0e278c.png"></p>
+<p>7. Summary of All Installation Options/Selections. View Script</p>
+<pre><code>#
+# Windows PowerShell script for AD DS Deployment
+#
+
+Import-Module ADDSDeployment
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath &#34;C:\Windows\NTDS&#34; `
+-DomainMode &#34;WinThreshold&#34; `
+-DomainName &#34;Exco.local&#34; `
+-DomainNetbiosName &#34;EXCO&#34; `
+-ForestMode &#34;WinThreshold&#34; `
+-InstallDns:$true `
+-LogPath &#34;C:\Windows\NTDS&#34; `
+-NoRebootOnCompletion:$false `
+-SysvolPath &#34;C:\Windows\SYSVOL&#34; `
+-Force:$true</code></pre>
+<p>8. Next button click will trigger prerequisites check and will show the violated rule:</p>
+<p class="image-container"><img style="width: 394.50px" src="img/1f6543f67dc493f6.png"></p>
+<h2 is-upgraded>Change local administrator password</h2>
+<p>9. In the Start menu under Windows System group, right-click on Command Prompt; Select More; Run as an Administrator menu item.</p>
+<p class="image-container"><img style="width: 450.50px" src="img/dfb34251a2cf55d0.png"></p>
+<p>10. Run following command to change local administrator password</p>
+<pre><code>net user administrator *</code></pre>
+<p>Type and retype a password: <code>Apigee123!</code></p>
+<p>11. After the password is changed successfully, press Previous and Next button of the Prerequisites Check of the ADDS Configuration Wizard to trigger the prerequisites check. This time it will finish successfully only with some warnings but without errors.</p>
+<p>12. Press Install.</p>
+<p>After the server restarts, open the desktop again and log in.</p>
+<p><strong>NOTE</strong>: Please wait for the Group Policy Client message for some looong time.</p>
+<p>Use Tools listbox to validate installed components.</p>
+<p class="image-container"><img style="width: 228.04px" src="img/be4587c465af573f.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Set Up MS AD FS" duration="20">
+        <h2 is-upgraded>Install the AD FS Server Role</h2>
+<p>1. Open Server Manager and chose Manage; Add Roles and Features. Next</p>
+<p class="image-container"><img style="width: 165.66px" src="img/bc7ef8161003bd3e.png"></p>
+<p>2. At the Installation Type wizard page, check radio-button: Role-based or feature-based installation. Next</p>
+<p>3. Select server. Next</p>
+<p class="image-container"><img style="width: 413.50px" src="img/ea29758b0045c7e4.png"></p>
+<p>4. Server Roles. Check Active Directory Federation Services box. Next</p>
+<p class="image-container"><img style="width: 441.54px" src="img/711edcc79425e8ab.png"></p>
+<p>5. In the Features page, click Next.</p>
+<p>6. AD FS. Next. </p>
+<p>7. No need to restart the server. Press Install. Close.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create Self-Signed Certificate" duration="20">
+        <p><strong>For Details</strong>, see: <a href="https://www.digicert.com/csr-creation-ssl-installation-ad-fs-windows-server-2012-iis8.htm" target="_blank">https://www.digicert.com/csr-creation-ssl-installation-ad-fs-windows-server-2012-iis8.htm</a></p>
+<p><a href="http://woshub.com/how-to-create-self-signed-certificate-with-powershell/" target="_blank">http://woshub.com/how-to-create-self-signed-certificate-with-powershell/</a></p>
+<p><a href="https://docs.microsoft.com/en-us/powershell/module/pkiclient/?view=win10-ps" target="_blank">https://docs.microsoft.com/en-us/powershell/module/pkiclient/?view=win10-ps</a></p>
+<h2 is-upgraded>Create a CSR and Self-signed Certificate Using PowerShell</h2>
+<p>1. Start Windows PowerShell as Administrator</p>
+<p class="image-container"><img style="width: 433.23px" src="img/f87a167799205d49.png"></p>
+<p>2. To see the list of available cmdlets for certificate manipulations, execute</p>
+<pre><code>Get-Command -Module PKI</code></pre>
+<p>3. The New-SelfSignedCertificate can only install certificates to the My certificate store, and that requires local administrator rights on the device. Execute following fragment to create an adfs certificate:</p>
+<pre><code>$todaydt = Get-Date
+$years = $todaydt.AddYears(10)
+New-SelfSignedCertificate -dnsname adfs.exco.com -notafter $years -CertStoreLocation cert:\LocalMachine\My</code></pre>
+<p>Output: </p>
+<pre><code>PSParentPath: Microsoft.PowerShell.Security\Certificate::LocalMachine\My
+
+Thumbprint                                Subject
+----------                                -------
+A3B12D1E00AABA4EDC8A2CA27BCAA22A8F7920E0  CN=adfs.exco.com</code></pre>
+<p>4. Set up a certificate password variable</p>
+<pre><code>$CertPassword = ConvertTo-SecureString -String &#34;Apigee123!&#34; -Force –AsPlainText</code></pre>
+<p>5. Prepare C:\adfs-certificates directory.</p>
+<pre><code>mkdir C:\adfs-certificates</code></pre>
+<p>6. Export the certificate to an C:\adfs-certificates directory, using certificate thumbprint from the previous step.</p>
+<pre><code>Export-PfxCertificate -Cert cert:\LocalMachine\My\A3B12D1E00AABA4EDC8A2CA27BCAA22A8F7920E0 -FilePath C:\adfs-certificates\adfs-cert.pfx -Password $CertPassword</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Post-Deployment Configuration" duration="20">
+        <h2 is-upgraded>Add <code>apigee_sa</code> to the Domain Admins group</h2>
+<p>1. Open Tools/Active Directory Users and Computers of the Service Manager. Navigate to Exco.local/Users. </p>
+<p class="image-container"><img style="width: 439.65px" src="img/22c486cb44ca70b0.png"></p>
+<p>2. Open Properties dialog of Domain Admins Security Group - Global. Activate Members tab.</p>
+<p>3. Add apigee_sa to to this group.</p>
+<p class="image-container"><img style="width: 468.47px" src="img/261419f282508712.png"></p>
+<p>4. Re-login your current session to refresh group memberships. [Don&#39;t tell me: I know. Just move to Linux.]</p>
+<h2 is-upgraded>DNS Entry creation</h2>
+<p>1. Using Server Manager, open Tools/DNS Manager.</p>
+<p>2. In the EXCO-ADFS DNS Server, right-click New Zone... context-menu item.</p>
+<p class="image-container"><img style="width: 321.50px" src="img/36359878f93620a2.png"></p>
+<p>The New Zone wizard will open. To continue, click Next.</p>
+<p>3. Select Primary zone type of zone.</p>
+<p class="image-container"><img style="width: 276.50px" src="img/2d7935a026f71a2a.png"></p>
+<p>4. Select active directory zone replication scope: To all DNS servers running on domain controllers in this domain: Exco.local</p>
+<p class="image-container"><img style="width: 368.50px" src="img/cb30811c8c0c9065.png"></p>
+<p>5. Select Forward lookup zone type of lookup zone.</p>
+<p class="image-container"><img style="width: 293.50px" src="img/919caf478cbbe5dc.png"></p>
+<p>6. Enter Zone name: exco.com</p>
+<p class="image-container"><img style="width: 260.24px" src="img/fbad6811e04e2f02.png"></p>
+<p>7. Select allowed type of dynamic updates: Allow only secure dynamic updates.</p>
+<p class="image-container"><img style="width: 321.50px" src="img/ab95501a3b9402bd.png"></p>
+<p>8. Press Finish on the settings summary wizard page.</p>
+<p class="image-container"><img style="width: 266.98px" src="img/9bc345ad87931028.png"></p>
+<p>9. Use ipconfig command in the command window to obtain IP Address of this server. </p>
+<pre><code>C:\Windows\system32&gt; ipconfig
+
+Windows IP Configuration
+
+
+Ethernet adapter Ethernet:
+
+   Connection-specific DNS Suffix  . : c.prakashtest
+   Link-local IPv6 Address . . . . . : fe80::ed9e:46
+   IPv4 Address. . . . . . . . . . . : 10.132.0.12
+...</code></pre>
+<p>10. To create host record, open EXCO-ADFS/Forward lookup Zones subtree, right-click Exco.com item and chose New Host (A or AAAA)... context-menu item.</p>
+<p class="image-container"><img style="width: 266.62px" src="img/d8d735f3b0fbec26.png"></p>
+<p>12. Fill the Name and IP address fields</p>
+<p>Name: adfs</p>
+<p>IP Address: &lt;from the previous step&gt;</p>
+<p>Create associated pointer (PTR) record: check it.</p>
+<p class="image-container"><img style="width: 223.38px" src="img/4a4c9e78c766950e.png"></p>
+<p>12. Click on Add Host button.</p>
+<h2 is-upgraded>Create KdsRootKey using PowerShell</h2>
+<p>1. In the PowerShell session, execute Add-KdsRootKey command (use Get-Help Add-KdsRootKey for details):</p>
+<pre><code>Import-Module ActiveDirectory
+Add-KdsRootKey -EffectiveImmediately</code></pre>
+<p>Output:</p>
+<pre><code>Guid
+----
+4be76f4a-6306-dff3-b2cf-dce852dc4df3</code></pre>
+<aside class="special"><p>TIP: If you get following error message:</p>
+<p><code>Add-KDSRootKey : The request is not supported. (Exception from HRESULT: 0x80070032)... Exception from HRESULT: Microsoft.KeyDistributionService.Cmdlets.AddKDSRootKeyCommand</code></p>
+<p>and the user you&#39;re executing shell is a Domain Admin, and you made er Domain Admin just right now, you might need to relogin your Windows session to activate membership changes. [Did I tell you to move to Linux?]</p>
+</aside>
+<h2 is-upgraded>Federation Service Configuration</h2>
+<p>1. In the Server Manager, in the Notifications list, click the message <strong>Configure the federation service on this server</strong>.</p>
+<p class="image-container"><img style="width: 293.50px" src="img/4a9bc4142158b7f8.png"></p>
+<p>2. AD FS Wizard. Radio-button Create the first federation server in a federation server farm. Next.</p>
+<p class="image-container"><img style="width: 320.50px" src="img/1d644f8d2fe5bd72.png"></p>
+<p>3. In Connect to AD DS page of AD FS Configuration Wizard, click on Change button to the right of &lt;No credentials provided&gt; textbox.</p>
+<p>In the Windows Security dialog, enter name and password of apigee_sa user.</p>
+<p class="image-container"><img style="width: 348.83px" src="img/3108db79c2bce9fb.png"></p>
+<p>Click OK.</p>
+<p class="image-container"><img style="width: 397.50px" src="img/9dba37387569ad.png"></p>
+<p>Next.</p>
+<p>4. Specify Service Properties: Certificates and Federation Service names.</p>
+<p>Press Import... button and navigate to C:\adfs-certificate to pick up adfs-cert. In the Enter certificate password dialog, enter private key password you used during certificate creation.</p>
+<p>5. After the dialog closes, click on View button below adfs.exco.com combo-box to open Certificate dialog. </p>
+<p class="image-container"><img style="width: 280.06px" src="img/ea9d11ff33e90b0.png"></p>
+<p>6. Click at the Install Certificate... button to import this certificate as a Trusted Root Certificate. </p>
+<p>7. The Certificate Import Wizard will open. Select Local Machine as a Store Location. Chose Place all certificates in the following store radio-button and Browse... to select Trusted Root Certification Authorities.</p>
+<p class="image-container"><img style="width: 383.78px" src="img/9faead1e4efaa9e.png"></p>
+<p>8. Next and Finish. The Import was successful message should appear. Click OK to close the dialog.</p>
+<p>9. Close Certificate dialog. You can open the certificate via View link again to verify that the certificate is now trusted.</p>
+<p>?. Enter Federation Service Display Name: Exco AD FS Server <img style="width: 331.77px" src="img/2011c8e6cf5b1a30.png"></p>
+<p>Next.</p>
+<p>10. Create adfs_sa Group Managed Service Account</p>
+<p class="image-container"><img style="width: 317.50px" src="img/2fbcb786e19640f0.png"></p>
+<p>Next.</p>
+<p>11. Create WID instance to hold ADFS configuration database. Select the radiobutton.</p>
+<p class="image-container"><img style="width: 464.50px" src="img/5e71696c048db004.png"></p>
+<p>12. Review selected options. </p>
+<pre>This server will be configured as the primary server in a new AD FS farm &#39;adfs.exco.com&#39;.
+
+AD FS configuration will be stored in Windows Internal Database.
+
+Windows Internal Database feature will be installed on this server if it is not already installed.
+
+A group Managed Service Account EXCO\adfs_sa$ will be created if it does not already exist and this host will be added as a member.
+
+Federation service will be configured to run as EXCO\adfs_sa$.</pre>
+<p>Next. The prerequisite Check will run and pass successfully.</p>
+<p>13. Click Configure to initiate AD FS installation. </p>
+<p class="image-container"><img style="width: 385.50px" src="img/9ac4a7d6a16a3d9e.png"></p>
+<p>Close. </p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="AD FS Test SignOn" duration="10">
+        <p>1. Check status of the sign on page and enable it</p>
+<pre><code>PS C:\Windows\system32&gt; Get-AdfsProperties | Select-Object EnableIdpInitiatedSignonpage
+
+EnableIdpInitiatedSignonPage
+----------------------------
+                       False
+
+
+PS C:\Windows\system32&gt; Set-AdfsProperties –EnableIdpInitiatedSignonPage $True
+
+PS C:\Windows\system32&gt; Get-AdfsProperties | Select-Object EnableIdpInitiatedSignonpage
+
+EnableIdpInitiatedSignonPage
+----------------------------
+                        True</code></pre>
+<p>2. In a browser navigate to the following page:</p>
+<p><a href="https://adfs.exco.com/adfs/ls/idpinitiatedSignOn.aspx" target="_blank">https://adfs.exco.com/adfs/ls/idpinitiatedSignOn.aspx</a></p>
+<p class="image-container"><img style="width: 624.00px" src="img/b57ad57783ae36c9.png"></p>
+<h2 is-upgraded>Create Edge System Administrator User: </h2>
+<p>1. Open Tools/Active Directory Users and Computers</p>
+<p>2. At the Exco.local/Users folder, right-click New/User</p>
+<p>3. Fill the form for John Doe.</p>
+<p><code>First name: Edge</code></p>
+<p><code>Last name: Admin</code></p>
+<p><code>User logon name: edgeadmin</code></p>
+<p class="image-container"><img style="width: 261.49px" src="img/85b6482d31b604a.png"></p>
+<p>Click Next.</p>
+<p>4. Enter and confirm password: Welcome123!</p>
+<p>Uncheck: User must change password at next logon</p>
+<p>Check: Password never expires</p>
+<p class="image-container"><img style="width: 208.50px" src="img/4938ab3b72fe9288.png"></p>
+<p>Next.</p>
+<p>5. Check the summary and press Finish</p>
+<pre><code>Full name: Edge Admin
+User logon name: edgeadmin@Exco.local
+The user must change the password at next logon.</code></pre>
+<p>6. Double-click on a newly-created user account to open Properties editor and populate E-mail field with corresponding value of the edge System Administrator, admin@exco.com, that you used in silent config file.</p>
+<p class="image-container"><img style="width: 265.37px" src="img/a8c14064dd8589e6.png"></p>
+<p>7. Click OK to close the Properties editor.</p>
+<h2 is-upgraded>Create John Doe Test User</h2>
+<p>1. Open Tools/Active Directory Users and Computers</p>
+<p>2. At the Exco.local/Users folder, right-click New/User</p>
+<p>3. Fill the form for John Doe.</p>
+<pre><code>First name: John
+Last name: Doe
+User logon name: johnd</code></pre>
+<p class="image-container"><img style="width: 268.01px" src="img/9d936cb9f6138111.png"></p>
+<p>Click Next.</p>
+<p>4. Enter and confirm password: Welcome123!</p>
+<p>Uncheck: User must change password at next logon</p>
+<p>Check: Password never expires</p>
+<p class="image-container"><img style="width: 208.50px" src="img/4938ab3b72fe9288.png"></p>
+<p>Next.</p>
+<p>5. Check the summary and press Finish</p>
+<pre><code>Full name: John Doe
+User logon name: johnd@Exco.local
+The password never expires.</code></pre>
+<p>6. Double-click on a newly-created user account to open Properties editor and populate E-mail field with corresponding value of John Doe user&#39;s email, johnd@exco.com, you&#39;re going to create later.</p>
+<p class="image-container"><img style="width: 280.71px" src="img/50542977dd5b1c99.png"></p>
+<p>7. At the Sign On page, enter the credentials of <a href="mailto:johnd@exco.com" target="_blank">johnd@exco.com</a> user.</p>
+<p><a href="https://adfs.exco.com/adfs/ls/idpinitiatedSignOn.aspx" target="_blank">https://adfs.exco.com/adfs/ls/idpinitiatedSignOn.aspx</a></p>
+<p>User name: johnd@exco.local</p>
+<p>Password: Welcome123!</p>
+<p class="image-container"><img style="width: 365.50px" src="img/ec32ab9bbb2cb7e3.png"></p>
+<p>Click Sign in.</p>
+<p>You re signed in now.</p>
+<p class="image-container"><img style="width: 350.50px" src="img/9202b01ed8db0508.png"></p>
+<p>8. To sign out, either clock on Sign Out button or navigate to the following link:</p>
+<p><a href="https://adfs.exco.com/adfs/ls/?wa=wsignout1.0" target="_blank">https://adfs.exco.com/adfs/ls/?wa=wsignout1.0</a></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Part 3. Install apigee-sso" duration="10">
+        <p><strong>For Details: </strong><a href="https://docs.apigee.com/private-cloud/v4.18.05/install-and-configure-edge-sso" target="_blank">https://docs.apigee.com/private-cloud/v4.19.01/install-and-configure-edge-sso</a></p>
+<h2 is-upgraded>Create the TLS keys and certificates</h2>
+<p>1. At the edge-aio node, create directory for PKI artifacts</p>
+<pre><code>sudo mkdir -p /opt/apigee/customer/application/apigee-sso/jwt-keys
+sudo chown apigee: /opt/apigee/customer/application/apigee-sso/jwt-keys
+cd /opt/apigee/customer/application/apigee-sso/jwt-keys/
+
+sudo openssl genrsa -out edge-sso-privatekey.pem 2048
+sudo openssl rsa -pubout -in edge-sso-privatekey.pem -out edge-sso-publickey.pem
+
+sudo chown apigee: *.pem
+
+# ssc
+
+sudo mkdir -p /opt/apigee/customer/application/apigee-sso/saml/
+sudo chown apigee: /opt/apigee/customer/application/apigee-sso/saml
+cd /opt/apigee/customer/application/apigee-sso/saml/
+
+sudo openssl genrsa -aes256 -out edge-sso-server-key.pem 2048
+# password: Apigee123!</code></pre>
+<p>2. Strip passphrase from the private key file</p>
+<pre><code>sudo openssl rsa -in edge-sso-server-key.pem -out edge-sso-server-key-np.pem </code></pre>
+<p>3. Create certificate request configuration file</p>
+<p><strong>NOTES:</strong></p>
+<p>One-liner: <a href="https://security.stackexchange.com/questions/74345/provide-subjectaltname-to-openssl-directly-on-command-line" target="_blank">https://security.stackexchange.com/questions/74345/provide-subjectaltname-to-openssl-directly-on-command-line</a></p>
+<p><a href="https://www.openssl.org/docs/man1.1.0/apps/x509.html#BUGS" target="_blank">https://www.openssl.org/docs/man1.1.0/apps/x509.html#BUGS</a></p>
+<p>Extensions in certificates are not transferred to certificate requests and vice versa.</p>
+<p>simple ca: <a href="https://serverfault.com/questions/845806/how-to-issue-ssl-certificate-with-san-extension" target="_blank">https://serverfault.com/questions/845806/how-to-issue-ssl-certificate-with-san-extension</a></p>
+<p><strong><code>vi edge-sso-server-csr.conf</code></strong></p>
+<pre><code>[req]
+default_bits = 2048
+default_keyfile = edge-sso-server-key.pem
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = UK
+ST = London
+L = London
+O  = Exco Ltd
+CN = edge-sso.exco.com
+
+[v3_req]
+keyUsage = critical, digitalSignature, keyAgreement
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = edge-sso.exco.com</code></pre>
+<p>4. Create certificate request</p>
+<pre><code>openssl req -new -out edge-sso-server-csr.pem -nodes -key edge-sso-server-key.pem -config edge-sso-server-csr.conf</code></pre>
+<p>5. Verify CSR</p>
+<pre><code>openssl req -text -noout -verify -in edge-sso-server-csr.pem</code></pre>
+<p>6. Generate and sign certificate</p>
+<pre><code>openssl req -x509 -nodes -days 3650 -key edge-sso-server-key.pem -out edge-sso-server-cer.pem -config edge-sso-server-csr.conf -extensions &#39;v3_req&#39;</code></pre>
+<p>7. Verify certificate</p>
+<pre><code>openssl x509 -text -noout -in edge-sso-server-cer.pem</code></pre>
+<h2 is-upgraded>SSO Configuration</h2>
+<p><strong>exco-adfs</strong> private network IP: <code>10.132.0.12</code></p>
+<p><strong>exco-aio</strong> private network IP: <code>10.132.0.10</code></p>
+<p>AD FS IdP SAML metadata URL endpoint:</p>
+<p><a href="https://adfs.exco.com/FederationMetadata/2007-06/FederationMetadata.xml" target="_blank">https://adfs.exco.com/FederationMetadata/2007-06/FederationMetadata.xml</a></p>
+<p>FQDN: <code>edge-sso.exco.com</code></p>
+<p>1. At the exco-adfs Windows node, &#39;fix&#39; FQDN record in &#34;C:\Windows\System32\drivers\etc\hosts&#34; edit as Administrator</p>
+<pre><code>cd C:\Windows\System32\drivers\etc\hosts
+10.132.0.10 edge-sso.exco.com</code></pre>
+<p>2. At the exco-aio node, configure /etc/hosts for AD FS Internal IP</p>
+<pre><code>10.132.0.12 adfs.exco.com</code></pre>
+<p>3. Verify/fetch federation metadata </p>
+<pre><code>curl https://adfs.exco.com/FederationMetadata/2007-06/FederationMetadata.xml -k</code></pre>
+<p>4. Configure sso tomcat truststore. Identify truststore file.</p>
+<pre><code>$ ls -ls /usr/java/latest
+0 lrwxrwxrwx. 1 root root 28 Dec 19 18:16 /usr/java/latest -&gt; /usr/java/jdk1.8.0_191-amd64
+
+$ ls -ls /usr/java/latest/jre/lib/security
+... cacerts
+...</code></pre>
+<p>5. At the Windows node exco-adfs, export adfs.exco.com public certificate. Navigate to the <a href="https://adfs.exco.com" target="_blank">https://adfs.exco.com</a> in a browser, right-click at the lock icon, switch to the Details tab, and press Copy to File... button.</p>
+<p class="image-container"><img style="width: 304.66px" src="img/8af7b5d9424fe127.png"></p>
+<p>6. In the Certificate Export Wizard, press Next, chose Base-64 encoded X.509 (.CER) radio-button, Press Next and enter </p>
+<p><code>C:\adfs-certificates\adfs-cer</code></p>
+<p>as a file name.</p>
+<p class="image-container"><img style="width: 242.66px" src="img/7e8e23f9dbe818db.png"></p>
+<p>Click Finish. Confirm successful certificate export dialog.</p>
+<p>7. copy to clipboard</p>
+<pre><code>type C:\adfs-certificates\adfs-cer.cer | clip
+
+-----BEGIN CERTIFICATE-----
+MIIDJDCCAgygAwIBAgIQbjAM4kBGMIpLJKSqd9bYUTANBgkqhkiG9w0BAQsFADAY
+MRYwFAYDVQQDDA1hZGZzLmV4Y28uY29tMB4XDTE4MTIyMDE2NDcxNloXDTI4MTIy
+MDE2NTcxMVowGDEWMBQGA1UEAwwNYWRmcy5leGNvLmNvbTCCASIwDQYJKoZIhvcN
+AQEBBQADggEPADCCAQoCggEBAKbob9LC1Di2uDOfBmjqKKIxUz2Wj3Xd3rXTckrG
+QrMhUcVFDUGYt0wJqnKDlz2Jo92HiYbTJWqoSELDxkAEjQgfFnzK3PoNT2c9+5cz
+jUDhXLTzyQDWZyZ17IbMSW8ehqo7rcFy4UqeYhby8hWZMfjZXFkqiG6KrR3TM0gn
+VssDH1WCijc81t4DUQu1q6Ki8lfTZMa5Frd4V6+WzwFwWX2dcR/PL7JLD7D4evQW
+q2aDLJmpCtgxLww1/FShfFgap8mNBL6KMXzJd4iI/eZF4LjLSaPTuDHD9ywPr2Ci
+9N4t6NVPdYnAze5V9G8laHPbQHQ03566GeGxtWszPMncQLMCAwEAAaNqMGgwDgYD
+VR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcDATAYBgNV
+HREEETAPgg1hZGZzLmV4Y28uY29tMB0GA1UdDgQWBBSO09F3YH9ZWkj9TtE64jUe
+SfQSgjANBgkqhkiG9w0BAQsFAAOCAQEAn3fQgzQtPN69vIpRyIgLAihmsLV4NZgV
+7tC+EfuEg3R5sSv0cUbVg5fl1AdI0/B21YGRrMzLqrHXk7Zsxlu/H+vhQ92URyVE
+wscRgMEjyi4n0LZ27605w84cY8q5QP84ymLeZhuHgDtfBb1XdG7omjBrFH1Ia6Gn
+MqRshuS25h+vuIiMrkBGEM0Q8t+zMWO9fqau+Wq6JLM0aQ3eNwxK9dHKdCteTzuA
+f/pllF+75fe6C5jCkt4uQqIIcUHraK8KxTaP3kbb0XHCdM9cxN/RRvnxhT6/vgtL
+2QXWZz3H/zKUZI4XyHSkBTK1w1BDCX1W0QvgMT4PJyEYWUtRmXYm6A==
+-----END CERTIFICATE-----</code></pre>
+<p>8. At the exco-aio node, import adfs public certificate</p>
+<pre><code>vi /opt/apigee-install/adfs-cer.pem
+
+# insert the certificate from your clipboard
+
+export JAVA_HOME=/usr/java/latest
+
+sudo keytool -importcert -file /opt/apigee-install/adfs-cer.pem -alias adfs-exco-com-cer -keystore $JAVA_HOME/jre/lib/security/cacerts -storepass changeit
+
+Trust this certificate? [no]:  yes
+Certificate was added to keystore</code></pre>
+<p>9. Prepare silent configuration file for apigee-sso component:</p>
+<p>- Edit IP1 address; </p>
+<p>- SSO JWT key and certificate;</p>
+<p>- Update idp metadata url;</p>
+<p>- SSO SAML service provider key and certificate</p>
+<p><strong><code>vi /opt/apigee-install/edge-sso.cfg</code></strong></p>
+<pre><code>IP1=10.132.0.10
+IP2=$IP1
+
+## Management Server configuration.
+MSIP=$IP1
+MGMT_PORT=8080
+# Edge sys admin username and password as set when you installed Edge.
+ADMIN_EMAIL=admin@exco.com
+APIGEE_ADMINPW=Apigee123!
+# Set the protocol for the Edge management API. Default is http. 
+# Set to https if you enabled TLS on the management API.
+MS_SCHEME=http
+
+## Postgres configuration.
+PG_HOST=$IP1
+PG_PORT=5432
+# Postgres username and password as set when you installed Edge.
+PG_USER=apigee
+PG_PWD=postgres
+
+# apigee-sso configuration.
+SSO_PROFILE=&#34;saml&#34;
+# Externally accessible IP or DNS name of apigee-sso.
+SSO_PUBLIC_URL_HOSTNAME=$IP2
+# Default port is 9099. If changing, set both properties to the same value.
+SSO_PUBLIC_URL_PORT=9099
+SSO_TOMCAT_PORT=9099
+# Set Tomcat TLS mode to DEFAULT to use HTTP access to apigee-sso.
+SSO_TOMCAT_PROFILE=DEFAULT
+SSO_PUBLIC_URL_SCHEME=http
+
+# SSO admin user name. The default is ssoadmin.
+SSO_ADMIN_NAME=ssoadmin
+# SSO admin password using uppercase, lowercase, number, and special chars. 
+SSO_ADMIN_SECRET=Apigee123!
+
+# Path to signing key and secret from &#34;Create the TLS keys and certificates&#34; above.
+SSO_JWT_SIGNINIG_KEY_FILEPATH=/opt/apigee/customer/application/apigee-sso/jwt-keys/edge-sso-privatekey.pem
+SSO_JWT_VERIFICATION_KEY_FILEPATH=/opt/apigee/customer/application/apigee-sso/jwt-keys/edge-sso-publickey.pem
+
+# Name of SAML IDP. For example, okta or adfs. 
+SSO_SAML_IDP_NAME=adfs
+# Text displayed to user when they attempt to access Edge UI.
+SSO_SAML_IDP_LOGIN_TEXT=&#34;Please log in to your IDP&#34;
+
+# The metadata URL from your IDP.
+# If you have a metadata file, and not a URL, 
+# see &#34;Specifying a metadata file instead of a URL&#34; below.
+SSO_SAML_IDP_METADATA_URL=https://adfs.exco.com/FederationMetadata/2007-06/FederationMetadata.xml
+
+# Specifies to skip TLS validation for the URL specified
+# by SSO_SAML_IDP_METADATA_URL. Necessary if URL uses a self-signed cert. 
+# Default value is &#34;n&#34;.
+SSO_SAML_IDPMETAURL_SKIPSSLVALIDATION=n
+
+# SAML service provider key and cert from &#34;Create the TLS keys and certificates&#34; above.
+SSO_SAML_SERVICE_PROVIDER_KEY=/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-key-np.pem
+SSO_SAML_SERVICE_PROVIDER_CERTIFICATE=/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem
+# The passphrase used when you created the SAML cert and key. 
+# The section &#34;Create the TLS keys and certificates&#34; above removes the passphrase, 
+# but this property is available if you require a passphrase.
+# SSO_SAML_SERVICE_PROVIDER_PASSWORD=samlSP123
+
+# Must configure an SMTP server so Edge SSO can send emails to users.
+SKIP_SMTP=y
+SMTPHOST=smtp.example.com
+SMTPUSER=smtp@example.com
+# omit for no username
+SMTPPASSWORD=smtppwd
+# omit for no password
+SMTPSSL=n
+SMTPPORT=25
+SMTPMAILFROM=&#34;Exco &lt;admin@exco.com&gt;&#34;
+
+</code></pre>
+<p>10. Install and configure apigee-sso component</p>
+<pre><code>/opt/apigee/apigee-setup/bin/setup.sh -p sso -f /opt/apigee-install/edge-sso.cfg | tee /opt/apigee-install/edge-apigee-install-sso-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</code></pre>
+<p>11. Install apigee-ssoadminapi</p>
+<pre><code>/opt/apigee/apigee-service/bin/apigee-service apigee-ssoadminapi install | tee /opt/apigee-install/edge-apigee-install-ssoadminapi-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log
+
+
+# [not for googler project!] firewall for sso
+gcloud compute firewall-rules create edge-sso --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:9099 --source-ranges=0.0.0.0/0
+
+gcloud compute firewall-rules create edge-sso-s --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:9443 --source-ranges=0.0.0.0/0</code></pre>
+<p>12. Verify apigee sso saml metadata endpoint accessability from exco-adfs node, ie, using browser:</p>
+<pre>http://10.132.0.10:9099/saml/metadata</pre>
+<p>or curl:</p>
+<pre>curl http://10.132.0.10:9099/saml/metadata -o /opt/apigee-install/edge-sso-saml-metadata.xml</pre>
+<h2 is-upgraded>Configure apigee-sso for HTTPS access. Enable SSL_TERMINATION mode</h2>
+<p><strong>For Details</strong>, see: <a href="https://docs.apigee.com/private-cloud/v4.18.05/configure-apigee-sso-https-access" target="_blank">https://docs.apigee.com/private-cloud/v4.19.01/configure-apigee-sso-https-access</a></p>
+<p>1. Creating JKS file at the exco-aio node</p>
+<p><a href="https://docs.apigee.com/private-cloud/v4.18.05/configuring-ssl-edge-premises#creatingajksfile" target="_blank"><code>https://docs.apigee.com/private-cloud/v4.19.01/configuring-ssl-edge-premises#creatingajksfile</code></a></p>
+<pre>cd /opt/apigee/customer/application/apigee-sso/saml/
+
+sudo openssl pkcs12 -export -clcerts -in edge-sso-server-cer.pem -inkey edge-sso-server-key-np.pem -out apigee-sso-keystore.pkcs12 -name sso
+# Password: Apigee123!
+
+
+keytool -importkeystore -srckeystore apigee-sso-keystore.pkcs12 -srcstoretype pkcs12 -destkeystore apigee-sso-keystore.jks -deststoretype jks -alias sso
+# Passwords: Apigee123!
+$ sudo keytool -importkeystore -srckeystore apigee-sso-keystore.pkcs12 -srcstoretype pkcs12 -destkeystore apigee-sso-keystore.jks -deststoretype jks -alias sso
+Importing keystore apigee-sso-keystore.pkcs12 to apigee-sso-keystore.jks...
+Enter destination keystore password:  
+Re-enter new password: 
+Enter source keystore password:  
+
+Warning:
+The JKS keystore uses a proprietary format. It is recommended to migrate to PKCS12 which is an industry standard format using &#34;keytool -importkeystore -srckeystore apigee-sso-keystore.jks -destkeystore apigee-sso-keystore.jks -deststoretype pkcs12&#34;.
+
+</pre>
+<p>2. Define apigee-sso tomcat https configuration directories</p>
+<pre>sudo mkdir -p /opt/apigee/customer/application/apigee-sso/tomcat-ssl/
+
+sudo chown apigee: /opt/apigee/customer/application/apigee-sso/tomcat-ssl/
+
+sudo cp /opt/apigee/customer/application/apigee-sso/saml/apigee-sso-keystore.jks /opt/apigee/customer/application/apigee-sso/tomcat-ssl/
+
+sudo chown apigee: /opt/apigee/customer/application/apigee-sso/tomcat-ssl/apigee-sso-keystore.jks</pre>
+<p>3. Create apigee-sso ssl termination silent config file. Override default settings.</p>
+<p><strong><code>vi /opt/apigee-install/edge-sso-ssl-termination.cfg</code></strong></p>
+<pre><code>. /opt/apigee-install/edge-sso.cfg
+
+# Enable SSL_TERMINATION mode.
+SSO_TOMCAT_PROFILE=SSL_TERMINATION
+
+# Specify the path to the keystore file.
+SSO_TOMCAT_KEYSTORE_FILEPATH=/opt/apigee/customer/application/apigee-sso/tomcat-ssl/apigee-sso-keystore.jks
+
+SSO_TOMCAT_KEYSTORE_ALIAS=sso
+
+# The password specified when you created the keystore.
+SSO_TOMCAT_KEYSTORE_PASSWORD=Apigee123!
+
+# Specify the HTTPS port number between 1025 and 65535.
+# Typically ports 1024 and below require root access by apigee-sso.
+# The default is 9099.
+SSO_TOMCAT_PORT=9443
+SSO_PUBLIC_URL_PORT=9443
+
+# Set public access scheme of apigee-sso to https.
+SSO_PUBLIC_URL_SCHEME=https
+SSO_PUBLIC_URL_HOSTNAME=edge-sso.exco.com
+
+</code></pre>
+<p>4. Configure the Edge SSO module</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service apigee-sso setup -f /opt/apigee-install/edge-sso-ssl-termination.cfg | tee /opt/apigee-install/edge-apigee-sso-setup-ssl-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<p><strong>NOTE: </strong>if required, use following command to restart apigee-sso server</p>
+<pre><code>apigee-service apigee-sso restart</code></pre>
+<h2 is-upgraded>Deploy and Test edge-sso.exco.com public sertificate</h2>
+<p>1. At the exco-aio node, copy public certificate to exco-adfs Windows node into the</p>
+<p><strong>C:\adfs-certificates\edge-sso-server-cer.pem </strong></p>
+<p>file</p>
+<p><code>cat edge-sso-server-cer.pem </code></p>
+<pre>-----BEGIN CERTIFICATE-----
+MIICfzCCAeigAwIBAgIJAKQFZ8aAwyMFMA0GCSqGSIb3DQEBCwUAMF4xCzAJBgNV
+BAYTAlVLMQ8wDQYDVQQIDAZMb25kb24xDzANBgNVBAcMBkxvbmRvbjERMA8GA1UE
+CgwIRXhjbyBMdGQxGjAYBgNVBAMMEWVkZ2Utc3NvLmV4Y28uY29tMB4XDTE4MTIz
+MTEyNDE0OVoXDTI4MTIyODEyNDE0OVowXjELMAkGA1UEBhMCVUsxDzANBgNVBAgM
+BkxvbmRvbjEPMA0GA1UEBwwGTG9uZG9uMREwDwYDVQQKDAhFeGNvIEx0ZDEaMBgG
+A1UEAwwRZWRnZS1zc28uZXhjby5jb20wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJ
+AoGBAMoLRg0ohlQ9DkrnQRZ3mR6LqqMdsoUiI5XBmBWkXIVfKlJXR1BlkW1J3pDc
+plkQhc/pNnoRh2hbPN+bDYkmmjq2ULXkRhfdMpenUp4w/He+LQzMp+abjZWWH5LJ
+9NIAQAHy9wHrQmWdYpJAe7eIS8x6/s0LsReQJY0/ho7KKfURAgMBAAGjRTBDMA4G
+A1UdDwEB/wQEAwIDiDATBgNVHSUEDDAKBggrBgEFBQcDATAcBgNVHREEFTATghFl
+ZGdlLXNzby5leGNvLmNvbTANBgkqhkiG9w0BAQsFAAOBgQBmhVWMI03Z56I+q24q
+Baqk/TYhsk8EESg7kbUD7/neA11mEHtJLQSGk1/PMTcI22WR+Kid+saXJ3VNDAaA
+ItgWPlWT0AsPzus6JgU94Sen2RYFoNhzlwGIBUypo/11mq1cKJuO4u4g8vhngVkE
+N2uH6qqsZSS4ZdnAYYZQDLF8hA==
+-----END CERTIFICATE-----</pre>
+<p>2. On Windows box, open local machine certificate manager</p>
+<pre>certlm.msc</pre>
+<p><strong>NOTE: </strong>If you are working with osx, use KeyChain Access application to add the trust certificate chain.</p>
+<p>3. Right-click at Certificates - <code>Local Computer/Trusted Root Certification Authority/Certificates</code> tree node and select All Tasks/Import...</p>
+<p>4. In the Certificate Import Wizard, make sure that Store Location is Local Machine, press Next and select </p>
+<p><strong>C:\adfs-certificates\edge-sso-server-cer.pem </strong></p>
+<p>file</p>
+<p class="image-container"><img style="width: 410.74px" src="img/c8cfd4fedff25071.png"></p>
+<p>Next.</p>
+<p>5. Make sure you&#39;re importing certificate in the right Store Location</p>
+<p class="image-container"><img style="width: 267.50px" src="img/7780bac8d78d952b.png"></p>
+<p>Next. Finish.</p>
+<p>Confirm The import was successful dialog box.</p>
+<p>6. Test SSO by navigating to the link at exco-adfs node</p>
+<p><a href="https://edge-sso.exco.com:9443" target="_blank"><code>https://edge-sso.exco.com:9443</code></a></p>
+<p class="image-container"><img style="width: 365.50px" src="img/ec9fa3e90cc11a00.png"></p>
+<h2 is-upgraded>Configuring Edge as Relying Party in ADFS IDP</h2>
+<p><strong>For Details</strong>, See: <a href="https://docs.apigee.com/api-platform/system-administration/configuring-edge-relying-party-adfs-idp" target="_blank">https://docs.apigee.com/api-platform/system-administration/configuring-edge-relying-party-adfs-idp</a></p>
+<p>1. Open Tools/AD FS Management in the Server Manager</p>
+<p>2. Right-click Relying Party Trust. Select Add Relying Party Trust... wizard</p>
+<p class="image-container"><img style="width: 263.50px" src="img/bef5890033a3e88b.png"></p>
+<p>3. Make sure Claim aware radio-button is selected. Start.</p>
+<p>4. Populate Federation metadata address field.</p>
+<p><code>https://edge-sso.exco.com:9443/saml/metadata</code></p>
+<p class="image-container"><img style="width: 366.50px" src="img/86aceebf579db77d.png"></p>
+<p>Next.</p>
+<p>5. Confirm this relying party&#39;s default display name.</p>
+<p class="image-container"><img style="width: 368.50px" src="img/7f43d74d8708f0bc.png"></p>
+<p>Next.</p>
+<p>6. In the Choose Access  Control Policy dialog box, select I do not want to configure access control policies at this time checkbox, and select Next.</p>
+<p class="image-container"><img style="width: 229.50px" src="img/1ba485d19e42c5a6.png"></p>
+<p>7. At the Ready to Add Trust wizard page, verify entered information and press Next.</p>
+<p>8. Click Close to close Add Relying Party Trust  wizard and to open Configure claims issuance policy for this application wizard. </p>
+<p class="image-container"><img style="width: 309.50px" src="img/4f356c25bde41ae5.png"></p>
+<p>Press Close.</p>
+<p>9. The Edit Claim Rules properties editor should appear.</p>
+<p class="image-container"><img style="width: 313.50px" src="img/be5b30dddaae35fb.png"></p>
+<h2 is-upgraded>Add Claim Rules</h2>
+<p>1. Click Add Rule... button</p>
+<p class="image-container"><img style="width: 457.72px" src="img/8ab53776efc7eb20.png"></p>
+<p>2. Using Send LDAP Attributes as Claims claim rule template, press Next.</p>
+<p>3. Enter following attributes:</p>
+<p>Claim rule name: Email Address</p>
+<p>Attribute store: Active Directory</p>
+<p>LDAP Attribute: E-Mail-Addresses</p>
+<p>Outgoing Claim Type: E-Mail Address</p>
+<p class="image-container"><img style="width: 236.50px" src="img/3ecf9acc5ff40ed5.png"></p>
+<p>Finish.</p>
+<p>4. Click Add Rule... button.</p>
+<p>5. Select Transform an Incoming Claim as the Claim rule template, and click Next:</p>
+<p>6. Enter following attributes:</p>
+<p>Claim rule name: Incoming Email Claim</p>
+<p>Incoming Claim Type: E-Mail Address</p>
+<p>Outgoing claim type: Name ID</p>
+<p>Outgoing name ID format: Email </p>
+<p class="image-container"><img style="width: 297.16px" src="img/c7e9e62283bd44bc.png"></p>
+<p>Finish</p>
+<p>7. Press OK button to close Edit Claim Issuance Policy properties editor.</p>
+<p>8. Right-click on the relying party trust and select <strong>Properties</strong>.</p>
+<p class="image-container"><img style="width: 370.50px" src="img/6cd6fb191fbc921a.png"></p>
+<p>Verify Advanced/Secure hash algorithm: SHA-256</p>
+<p>9. Press OK button to close the properties editor.</p>
+<h2 is-upgraded>Edit Access Control Policy</h2>
+<p>1. Make sure that edde-sso.exco.com Relying Party Trust item is selected and double-click on Edit Access Control Policy... action to open Properties editor.</p>
+<p class="image-container"><img style="width: 357.50px" src="img/d2f6a892bb7b5768.png"></p>
+<p>2. Select Permit everyone policy and press Apply. </p>
+<p>3. Press OK to close the editor.</p>
+<h2 is-upgraded>Enable SAML on Edge UI</h2>
+<p><a href="https://docs.apigee.com/private-cloud/v4.18.05/enable-saml-edge-ui" target="_blank">https://docs.apigee.com/private-cloud/v4.19.01/enable-saml-edge-ui</a></p>
+<p>1. Add /etc/hosts entry for edge-sso.exco.com FQDN pointing at this node.</p>
+<pre>sudo vi /etc/hosts
+
+10.132.0.10 edge-sso.exco.com
+</pre>
+<p>2. Create Edge UI silent configuration file.</p>
+<p><strong><code>vi /opt/apigee-install/edge-ui-sso.cfg</code></strong></p>
+<pre><code>IP1=$(hostname)
+
+# Comma separated list of URLs for the Edge UI,
+# in the format:  http_or_https://IP_or_hostname_of_UI:9000.
+# You can have multiple URLs when you have multiple installations
+# of the Edge UI or you have multiple data centers. 
+EDGEUI_PUBLIC_URIS=http://10.132.0.10:9000
+
+# Publicly accessible URLs for Edge UI.
+EDGEUI_SSO_REGISTERD_PUBLIC_URIS=$EDGEUI_PUBLIC_URIS
+
+# Required variables
+# Default is &#34;n&#34; to disable SAML support.
+EDGEUI_SSO_ENABLED=y
+
+# Information about apigee-sso.
+# Externally accessible IP or DNS of apigee-sso.
+SSO_PUBLIC_URL_HOSTNAME=edge-sso.exco.com
+SSO_PUBLIC_URL_PORT=9443
+# Default is http. Set to https if you enabled TLS on apigee-sso.
+SSO_PUBLIC_URL_SCHEME=https
+
+# SSO admin credentials as set when you installed apigee-sso.
+SSO_ADMIN_NAME=ssoadmin
+SSO_ADMIN_SECRET=Apigee123!
+
+# The name of the OAuth client used to connect to apigee-sso.
+# The default client name is edgeui.
+EDGEUI_SSO_CLIENT_NAME=edgeui
+# Oauth client password using uppercase, lowercase, number, and special chars.
+EDGEUI_SSO_CLIENT_SECRET=Apigee123!
+
+# If set, the existing EDGEUI client is deleted and new one is created.
+# The default value is &#34;n&#34;.
+# Set to &#34;y&#34; when you configure SAML and change the value of
+# any of the EDGEUI_* properties.
+EDGEUI_SSO_CLIENT_OVERWRITE=y
+
+</code></pre>
+<p>3. Execute Edge UI reconfiguration</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-ui configure-sso -f /opt/apigee-install/edge-ui-sso.cfg | tee /opt/apigee-install/edge-apigee-edge-ui-sso-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log </pre>
+<p><strong>DEBUG</strong> Tips: </p>
+<p>* action configure-sso call curl for oauth token:</p>
+<p>curl -k -s -i -d grant_type=client_credentials https://edge-sso.exco.com:9443/oauth/token -H &#39;Content-Type: application/x-www-form-urlencoded;charset=utf-8&#39; -H &#39;accept: application/json;charset=utf-8&#39; -H &#39;Authorization: Basic c3NvYWRtaW46QXBpZ2VlMTIzIQ==&#39; -v</p>
+<p>* check for /etc/hosts, as at this point we are using FQDN</p>
+<h3 is-upgraded>Configure Edge UI to support self-signed certs with Edge SSO</h3>
+<p>1. Edge UI</p>
+<p><code>sudo vi /opt/apigee/edge-ui/conf/source/application.conf </code></p>
+<pre><code>play.ws.ssl {
+  trustManager = {
+    stores = [
+      { type = &#34;PEM&#34;, path = &#34;/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem&#34; }
+    ]
+  }
+}</code></pre>
+<p>2. Add trust certificate chain to the MS truststore.</p>
+<pre>keytool -importcert -alias startssl -keystore $JAVA_HOME/jre/lib/security/cacerts -file /opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem  -storepass changeit</pre>
+<h3 is-upgraded><strong>DEBUG</strong><strong> Tips:</strong></h3>
+<p>Error message like this in <code>/opt/apigee/var/log/edge-ui/application.log</code> indicates TLS connection problem. </p>
+<p>Make sure you restart Edge UI after changing playframework truststore certificate.</p>
+<pre>2019-01-02 15:31:36,628 [ERROR] from play.core.server.netty.PlayDefaultUpstreamHandler in New I/O worker #5 - Exception caught in Netty
+java.lang.IllegalArgumentException: invalid version format: ﾐ]Z^Uﾠ￩^G ;^D￮ﾌS^Pￄ^Fￄﾮﾈ5&lt;U+FFF0&gt;￬ﾔPE&lt;U+FFC1&gt;ￅZCﾈE^EV^Z&lt;U+FFE7&gt;￠Y&lt;U+FFD0&gt;^@&#34;ￊￊ^S^A^S^B^S^C&lt;U+FFC0&gt;+
+&lt;U+FFC0&gt;/&lt;U+FFC0&gt;,&lt;U+FFC0&gt;0ￌﾩￌﾨ&lt;U+FFC0&gt;^S&lt;U+FFC0&gt;^T^@ﾜ^@ﾝ^@/^@5
+        at org.jboss.netty.handler.codec.http.HttpVersion.&lt;init&gt;(HttpVersion.java:94) ~[io.netty.netty-3.10.5.Final.jar:na]
+        at org.jboss.netty.handler.codec.http.HttpVersion.valueOf(HttpVersion.java:62) ~[io.netty.netty-3.10.5.Final.jar:na]</pre>
+<h2 is-upgraded>ADFS Event Logs</h2>
+<p>In case of problems, Event Viewer contains useful debugging information. To open <strong>eventvwr, </strong>in Server Manager, chose:</p>
+<p><strong>Application and Services Logs &gt; AD FS &gt; Admin. </strong></p>
+<h2 is-upgraded>Edge SSO: Add and Test a User</h2>
+<p>1. Create .netrc entry for Management API</p>
+<p><strong><code>vi ~/.netrc</code></strong></p>
+<pre><code>machine 10.132.0.10 login admin@exco.com password Apigee123!</code></pre>
+<p>2. Create johnd@exco.local edge user in the org org.</p>
+<pre><code>curl -n -H &#34;Content-Type: application/json&#34; -X POST http://10.132.0.10:8080/v1/users -d &#39;{&#34;emailId&#34;: &#34;johnd@exco.com&#34;, &#34;firstName&#34;: &#34;John&#34;, &#34;lastName&#34;: &#34;Doe&#34;, &#34;password&#34;: &#34;Apigee123!&#34;}&#39;</code></pre>
+<p>3. Add new user to org organization</p>
+<pre>curl -n -H &#34;Content-Type:application/x-www-form-urlencoded&#34; -X POST http://10.132.0.10:8080/v1/o/org/userroles/user/users?id=johnd@exco.com</pre>
+<p>4. Navigate to </p>
+<p><a href="https://adfs.exco.com/adfs/ls/idpinitiatedSignOn.aspx" target="_blank">https://adfs.exco.com/adfs/ls/idpinitiatedSignOn.aspx</a></p>
+<p>5. User johnd credentials to sign into ADFS account:</p>
+<p>Test user: <strong>johnd@exco.local</strong></p>
+<p>Password: <strong>Welcome123!</strong></p>
+<p class="image-container"><img style="width: 419.50px" src="img/742edaef9204ac7e.png"></p>
+<p>6. In a separate browser window, navigate to Edge UI site:</p>
+<p><a href="http://10.132.0.10:9000" target="_blank">http://<strong>10.132.0.10</strong>:9000</a></p>
+<p>You are automatically redirected to the Dashboard page of the Edge UI via Sign-sign on mechanism.</p>
+<p class="image-container"><img style="width: 486.50px" src="img/248129f6518ba301.png"></p>
+<h2 is-upgraded>Tracing SSO Redirects</h2>
+<p>Actually, during SSO processing of SAML claims, there are three redirects involved:</p>
+<p>--&gt; redirect to edge-sso.exco.com</p>
+<p>--&gt; redirect to adfs.eco.com</p>
+<p>--&gt; redirect to Edge UI</p>
+<p>Let&#39;s use Chrome DevTools and SAML Chrome Panel extension to follow the redirect chain.</p>
+<p>1. In the chrome web store (<a href="https://chrome.google.com" target="_blank">https://chrome.google.com</a>), search for SAML Chrome Panel extension</p>
+<p><a href="https://chrome.google.com/webstore/detail/saml-chrome-panel/paijfdbeoenhembfhkhllainmocckace?hl=en" target="_blank">https://chrome.google.com/webstore/detail/saml-chrome-panel/paijfdbeoenhembfhkhllainmocckace?hl=en</a></p>
+<p>Add it to your Chrome.</p>
+<p class="image-container"><img style="width: 350.50px" src="img/ee033a9c9f23373e.png"></p>
+<p>2. If you&#39;re logged in the AD FS, navigate to </p>
+<p><a href="https://adfs.exco.com/adfs/ls/?wa=wsignout1.0" target="_blank">https://adfs.exco.com/adfs/ls/?wa=wsignout1.0</a></p>
+<p>to sign out.</p>
+<p>3. Right-click at the current web-page and select Inspect context menu item to open DevTools pane. Select SAML tab (if required, use chevron icon).</p>
+<p class="image-container"><img style="width: 437.50px" src="img/973c8a621d898fff.png"></p>
+<p>4. In the current browser tab, navigate to Edge UI</p>
+<p><a href="http://10.132.0.10:9000" target="_blank">http://10.132.0.10:9000</a></p>
+<p class="image-container"><img style="width: 339.50px" src="img/48e1b48904f4d8ab.png"></p>
+<p>5. Click at the Please log in to your IDP link.</p>
+<p>We are redirected to the Sign In page of the Exco AD FS Server.</p>
+<p>You can see SAML Request datagram.</p>
+<p class="image-container"><img style="width: 473.50px" src="img/f910d88739bd45e3.png"></p>
+<p>6. Use System Admin credentials:</p>
+<p>Username: edgeadmin@exco.local</p>
+<p>Password: Welcome123!</p>
+<p>Click Sign in button. At this point you are signed in the Exco AD FS server, redirected to edge-sso.exco.com:9443 and then to the 10.132.0.10:9000.</p>
+<p>The SAML panel shows SAML assertion with status Success.</p>
+<p class="image-container"><img style="width: 521.50px" src="img/ee7b16f35fb7dd6b.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Part 4. Installing the New Edge Experience (Beta)" duration="10">
+        <p><a href="https://docs.apigee.com/private-cloud/v4.18.05/installing-beta-release-edge-new-unified-experience" target="_blank">https://docs.apigee.com/private-cloud/v4.19.01/installing-beta-release-edge-new-unified-experience</a></p>
+<p>Prerequisites:</p>
+<p>[ ] classic edge-ui with sso at exco-aio</p>
+<p>[ ] different node: exco-nee; 10.154.0.11</p>
+<p>1. From jumbox ssh to exco-nee node</p>
+<pre>ssh exco-nee</pre>
+<p>2. Install utilities and setup apigee-install folder for user edge</p>
+<pre>sudo yum -y install mc nc wget
+
+sudo mkdir /opt/apigee-install
+sudo chown edge: /opt/apigee-install</pre>
+<p><strong>IMPORTANT:</strong> You shall have an access to the apigee rpm repositories and edge license file. </p>
+<p>3. Install Oracle JDK</p>
+<pre>cd /opt/apigee-install
+wget --no-cookies --no-check-certificate --header &#34;Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie&#34; &#34;https://download.oracle.com/otn-pub/java/jdk/8u191-b12/2787e4a523244c269598db4e85c51e0c/jdk-8u191-linux-x64.rpm&#34;
+
+sudo yum -y install jdk-8u191-linux-x64.rpm</pre>
+<p>4. Temporarily reset SELinux into permissive mode</p>
+<pre>sudo setenforce 0</pre>
+<p>5. Bootstrap Edge and install apigee-setup</p>
+<pre>wget https://software.apigee.com/bootstrap_4.19.01.sh -O /opt/apigee-install/bootstrap_4.19.01.sh
+
+export REPO_CLIENT_ID=`awk &#39;/User:/{print $2}&#39; /opt/apigee-install/credentials.txt`
+export REPO_PASSWORD=`awk &#39;/Password:/{print $2}&#39; /opt/apigee-install/credentials.txt`
+
+
+
+sudo bash /opt/apigee-install/bootstrap_4.19.01.sh apigeeuser=$REPO_CLIENT_ID apigeepassword=$REPO_PASSWORD
+
+sudo /opt/apigee/apigee-service/bin/apigee-service apigee-setup install
+</pre>
+<p>6. &#39;Fix&#39; networking connectivity between nodes via FQDN</p>
+<p><strong><code>sudo vi /etc/hosts</code></strong></p>
+<pre><code>10.132.0.10 edge-sso.exco.com</code></pre>
+<p>7. Copy and install public <code>edge-sso-server-cer.pem</code> certificate</p>
+<pre>sudo mkdir -p /opt/apigee/customer/application/apigee-sso/saml/
+cd /opt/apigee/customer/application
+
+sudo chown -R apigee: apigee-sso/saml/</pre>
+<p>8. At the jumpbox, copy certificate between nodes</p>
+<pre>## return to jumpbox
+exit
+
+scp -3 exco-aio:/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem exco-nee:/tmp
+
+# go back to exco-nee
+ssh exco-nee</pre>
+<p>9. Import certificate into jvm&#39;s keystore</p>
+<pre>sudo cp /tmp/edge-sso-server-cer.pem /opt/apigee/customer/application/apigee-sso/saml
+
+sudo chown apigee: /opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem
+
+export JAVA_HOME=/usr/java/latest
+
+sudo keytool -importcert -alias startssl -keystore $JAVA_HOME/jre/lib/security/cacerts -file /opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem  -storepass changeit</pre>
+<p>10. Define edge-ui-nee silent config file</p>
+<p><strong><code>vi /opt/apigee-install/edge-ui-nee.cfg</code></strong></p>
+<pre><code># IP of the Edge Management Server.
+# This node also hosts the Edge SSO module and the current, or classic, Edge UI.
+IP1=10.132.0.10
+
+# IP of the New Edge experience node.
+IP2=10.132.0.11
+
+# Edge sys admin credentials.
+ADMIN_EMAIL=admin@exco.com
+APIGEE_ADMINPW=Apigee123!
+
+# Edge Management Server information.
+APIGEE_PORT_HTTP_MS=8080
+MSIP=$IP1
+MS_SCHEME=http
+
+#
+# New Edge experience configuration.
+#
+
+# Enable the New Edge experience.
+EDGEUI_ENABLE_UNIFIED_UI=y
+# Specify IP and port for the New Edge experience.
+MANAGEMENT_UI_PORT=3001
+MANAGEMENT_UI_IP=$IP2
+# Specify a Private Cloud deployment.
+MANAGEMENT_UI_APP_ENV=OPDK
+# Disable TLS on the New Edge experience.
+# This release does not support TLS.
+MANAGEMENT_UI_SCHEME=http
+
+# Location of New Edge experience.
+MANAGEMENT_UI_PUBLIC_URIS=http://$IP2:3001
+MANAGEMENT_UI_SSO_REGISTERED_PUBLIC_URIS=$MANAGEMENT_UI_PUBLIC_URIS
+MANAGEMENT_UI_SSO_CSRF_SECRET=Apigee123!
+MANAGEMENT_UI_SSO_CSRF_EXPIRATION_HOURS=24
+MANAGEMENT_UI_SSO_STRICT_TRANSPORT_SECURITY_AGE_HOURS=24
+MANAGEMENT_UI_SSO_PUBLIC_KEY_CACHE_HOURS=0.5
+
+# SSO configuration for the New Edge experience.
+MANAGEMENT_UI_SSO_ENABLED=y
+MANAGEMENT_UI_SSO_CLIENT_OVERWRITE=y
+MANAGEMENT_UI_SSO_CLIENT_ID=newueclient
+MANAGEMENT_UI_SSO_CLIENT_SECRET=Apigee123!
+
+#
+# Shoehorn UI configuration.
+#
+
+# The first two properties use the same values as the New Edge experience.
+SHOEHORN_SCHEME=$MANAGEMENT_UI_SCHEME
+SHOEHORN_IP=$MANAGEMENT_UI_IP
+SHOEHORN_PORT=9000
+
+
+#
+# Edge Classic UI configuration.
+# Some settings are for the classic UI,
+# but are still required to configure the New Edge experience.
+#
+
+# These settings assume that Classic UI is installed on the Management Server.
+CLASSIC_UI_IP=$MSIP
+CLASSIC_UI_PORT=9000
+CLASSIC_UI_SCHEME=http
+EDGEUI_PUBLIC_URIS=http://$IP1:9000
+
+# Information about publicly accessible URL for Classic UI.
+EDGEUI_SSO_REGISTERD_PUBLIC_URIS=$EDGEUI_PUBLIC_URIS
+
+# Enable SSO.
+EDGEUI_SSO_ENABLED=y
+
+# The name of the OAuth client used to connect to apigee-sso. 
+# The default client name is edgeui.
+# Apigee recommends that you use the same settings as you used
+# when enabling SAML on the classic Edge UI.
+EDGEUI_SSO_CLIENT_NAME=edgeui
+# Oauth client password using uppercase, lowercase, number, and special chars. 
+EDGEUI_SSO_CLIENT_SECRET=Apigee123!
+# If set, existing EDGEUI client will deleted and new one will be created.
+EDGEUI_SSO_CLIENT_OVERWRITE=y
+
+# Information about Edge SSO module.
+# Externally accessible IP or DNS of Edge SSO module.
+SSO_PUBLIC_URL_HOSTNAME=edge-sso.exco.com
+SSO_PUBLIC_URL_PORT=9443
+# Default is http. Set to https if you enabled TLS on the Edge SSO module.
+# If Edge SSO uses a self-signed cert, you must also set MANAGEMENT_UI_SKIP_VERIFY to &#34;y&#34;.
+SSO_PUBLIC_URL_SCHEME=https
+# MANAGEMENT_UI_SKIP_VERIFY=y
+# SSO admin credentials as set when you installed Edge SSO module.
+SSO_ADMIN_NAME=ssoadmin
+SSO_ADMIN_SECRET=Apigee123!
+
+#
+# Required SMTP information.
+#
+
+SKIP_SMTP=y       # Skip now and configure later by specifying &#34;y&#34;.
+SMTPHOST=smtp.gmail.com
+SMTPUSER=your@email.com
+SMTPPASSWORD=yourEmailPassword
+SMTPSSL=y
+SMTPPORT=465      # If no SSL, use a different port, such as 25.
+SMTPMAILFROM=&#34;My Company myco@company.com&#34;
+
+</code></pre>
+<p>11. Install Shoehorn</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-ui install | tee /opt/apigee-install/edge-apigee-install-edge-ui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<p>12. Configure Shoehorn</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-ui setup -f /opt/apigee-install/edge-ui-nee.cfg | tee /opt/apigee-install/edge-apigee-setup-edge-ui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<p>13. Configure SSO for Shoehorn</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-ui configure-sso -f /opt/apigee-install/edge-ui-nee.cfg | tee /opt/apigee-install/edge-apigee-install-edge-ui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<p>14. Install Edge Management UI</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-management-ui install | tee /opt/apigee-install/edge-apigee-install-edge-mui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<p>15. Configure Edge Management UI</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-management-ui setup -f /opt/apigee-install/edge-ui-nee.cfg | tee /opt/apigee-install/edge-apigee-setup-edge-mui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<p>16. Configure SSO for Edge Management UI</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-management-ui configure-sso -f /opt/apigee-install/edge-ui-nee.cfg | tee /opt/apigee-install/edge-apigee-configure-sso-edge-mui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+<h2 is-upgraded>Go SSL_CERT_FILE environment variable configuration</h2>
+<p><a href="https://golang.org/pkg/crypto/x509/" target="_blank">https://golang.org/pkg/crypto/x509/</a></p>
+<p># example</p>
+<p>export SSL_CERT_FILE=/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem</p>
+<p>Edit some Edge 19.01 files to configure GO runtime truststore certificate so that Management UI can successfully connect to apigee-sso.</p>
+<p>1. Add export env variable line to the export.sh script</p>
+<p><code>vi /opt/apigee/apigee-service-4.19.01-0.0.1354/lib/exports.sh</code></p>
+<pre><code>export SSL_CERT_FILE
+</code></pre>
+<p>2. In the service-functions.sh script, add lines in the _dump_vars() and _infer_defaults() variables</p>
+<p><code>/opt/apigee/apigee-service-4.19.01-0.0.1354/lib/service-functions.sh</code></p>
+<pre><code># 1
+_dump_vars()
+{
+    notice &#34;SSL_CERT_FILE=/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem&#34;
+
+
+_infer_defaults()
+{
+...
+    SSL_CERT_FILE=/opt/apigee/customer/application/apigee-sso/saml/edge-sso-server-cer.pem
+</code></pre>
+<p>3.<strong> OPTIONAL: </strong>If using access to external IPs: firewall configuration</p>
+<pre># firewall for edge-nui
+gcloud compute firewall-rules create edge-nui --direction=INGRESS --priority=1000 --network=default --action=ALLOW --rules=tcp:3001 --source-ranges=0.0.0.0/0</pre>
+<p>4. You can navigate now to the Classic Edge UI and New Edge Experience using SSO</p>
+<p>EDGE: <strong>http://10.132.0.10:9000</strong></p>
+<p>NEE: <strong>http://10.132.0.11:3001</strong></p>
+<p>1. <strong>WHENEVER REQUIRED:</strong> Uninstall edge-management-ui</p>
+<pre>/opt/apigee/apigee-service/bin/apigee-service edge-management-ui uninstall | tee /opt/apigee-install/edge-apigee-uninstall-edge-mui-`date -u +\&#34;%Y-%m-%dT%H:%M:%SZ\&#34;`.log</pre>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

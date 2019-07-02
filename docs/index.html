@@ -1,0 +1,448 @@
+<head>
+    <link rel="shortcut icon" type="image/png" href="assets/alfa-icon-192x192.png">
+    <link rel="shortcut icon" sizes="192x192" href="assets/alfa-icon-192x192.png">
+    <link rel="apple-touch-icon" href="asserts/alfa-icon-192x192.png">
+
+    <link rel="stylesheet" type="text/css" href="assets/styles-github.css">
+    <style>
+        .green {
+            color: green;
+            font-size: 30;
+        }
+    </style>
+    <title>ALfA</title>
+</head>
+
+<body>
+
+    <p style="text-align: right"><img src="assets/gcp-logo.png" width="100px"> <img src="assets/Apigee_logo.svg" width="240px"></p>
+
+    <h1>ALfA Labs -- Advanced Labs for <a href="https://cloud.google.com/apigee/" target="_blank">Apigee</a></h1>
+    <hr>
+
+<p><a href="https://cloud.google.com/apigee/" target="_blank">Google Apigee Edge</a> is the leading API Management platform.</p>
+There is a plenty of sources to study the product starting from the official <a href="https://docs.apigee.com" target="_blank">documentation</a>. 
+
+There is no substitute for practical experience. Our goal is to optimise and speed up this process.
+<p>
+Amongst different ways to aquire practical skills of Apigee proficiency, step-by-step labs are holding the prominent place. </p>
+
+<p>
+There are three sets of labs or tutorials that you can use depending on your current level. 
+</p>
+
+<p>
+<a href="https://github.com/apigee/apijam" target="_blank">API Jam</a> are the foundational 15-minute exercises that provide basic skills around Apigee OOTB policies. 
+</p>
+
+<p>
+Second set are the labs that are the part of Coursera Apigee API Developer training course,
+<a href="https://www.coursera.org/specializations/apigee-api-gcp" target="_blank">Developing APIs with Google Cloud's Apigee API
+Platform Specialization</a>. They guide you systematically through the set of skills 
+necessary for the day-to-day work with Apigee.
+</p>
+
+<p>
+The ALfA project provides you with a third collection of labs that target more complex topics when you are moving from novice and intermediate to an expert level. 
+</p>
+Of course, it is hard to predict at which day you would need a mastery of the specific topic or an example of a specific policy in-context. 
+While lab title and description helps you locate a use case related to the one you currently work on,
+the Policy Usage Matrix is meant to serve 
+you as a visual guide to see which labs utilicy a particular policy.
+
+
+
+<hr>
+
+<h2>Edge Ops: OPDK Skills Matrix</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Lab</th>
+                <th>Networking and Linuxing</th>
+                <th>Topology/Components</th>
+                <th>Post-Installation Tasks</th>
+                <th>Security/Hardening</th>
+            </tr>
+<!--
+            <tr>
+                    <th  style="width: 100px; padding:0;"><div class="rotate">curl/.netrc</div></th>
+                    <th style="writing-mode: vertical-lr">openssl/cfssl</th>
+                    <th style="vertical-align: bottom">gcp</th>
+
+                    <th style="vertical-align: bottom">aio</th>
+                    <th style="vertical-align: bottom">5-node, 1DC</th>
+                    <th style="vertical-align: bottom">apigee-sso</th>
+                    <th style="vertical-align: bottom">new experience</th>
+                    <th style="vertical-align: bottom">devportal</th>
+
+                    <th style="vertical-align: bottom">CWC/local exec</th>
+                    <th style="vertical-align: bottom">Upgrade</th>
+
+                    <th style="vertical-align: bottom">ca/certs</th>
+                    <th style="vertical-align: bottom">vhost config</th>
+                </tr>
+            </thead>
+
+            <tr>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/quota-policy" target="_blank"
+                        title="Quota | TRAFFIC MGMNT">Q<img src="assets/icon_policy_quota.jpg"></a>
+                </th>
+-->
+        <tbody>
+            <tr>
+                <td colspan=16>
+                    <h2>Foundational Ops Skills and Activities</h2>
+                </td>
+            </tr>
+
+            <tr>
+                <td><a href="edge-ops-router-tls"
+                        target="_blank"><img src="assets/codelabs-logo-color.png" width=24> Lab
+                        Edge Ops Training. Router 1-Way TLS Configuration</a></td>
+
+                <td>gcp<br>openssl<br>curl/.netrc</td>
+                <td></span></td>
+                <td></td>
+                <td>ca/certs<br>keystore<br>vhost config</td>
+            </tr>
+
+            <tr>
+                <td><a href="edge-sso-adfs-nee"
+                        target="_blank"><img src="assets/codelabs-logo-color.png" width=24> Lab
+                        Apigee SSO and New Experience</a></td>
+
+                <td>openssl</td>
+                <td>n1:aio<br>n2:apigee-sso<br>n2:new experience</td>
+                <td></td>
+                <td> </td>
+
+
+            </tr>
+            </tbody>
+    </table>
+
+    <h2>Ops Engineer</h2>
+
+    <a href="https://www.coursera.org/specializations/apigee-api-gcp-onprem" target="_blank"><img
+            src="https://www.coursera.org/favicon.ico" width=20px> Install and Manage Google Cloud's Apigee API Platform
+        Specialization</a>
+
+    <hr>
+
+    
+
+    
+        <h2><a href="edge-ops-router-tls"  target="_blank">Edge Ops Training. Router 1-Way TLS Configuration</a></h2>
+                <p>The Lab will walk you through the following tasks:</p>
+                <ul>
+                    <li>Create Certificate Authority</li>
+                    <li>Generate Server's Private Key, Certificate request, and Sign Public Key</li>
+                    <li>Edge Key Store</li>
+                    <li>Create and configure Virtual Host</li>
+                    <li>Using curl to send 1wTLS requests</li>
+                </ul>
+
+                <h2><a href="edge-sso-adfs-nee"  target="_blank">Apigee SSO and New Experience</a></h2>
+                <p>The lab is a collection of step-by-step tasks to</p>
+                <ul>
+                    <li>setup aio edge on GCP</li>
+                    <li>create a windows server instance</li>
+                    <li>install and setup AD and ADFS on that instance</li>
+                    <li>add apigee-sso on aio node</li>
+                    <li>setup second edge node with new Edge UI</li>
+                    <li>integrate them</li>
+                </ul>
+
+    <hr>
+
+    <h2>API Dev: Policy Usage Matrix</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th rowspan=2>Lab</th>
+                <th colspan=4>Traffic Management</th>
+                <th colspan=3>Security</th>
+                <th colspan=5>Mediation</th>
+                <th colspan=3>Extension</th>
+            </tr>
+            <tr>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/quota-policy" target="_blank"
+                        title="Quota | TRAFFIC MGMNT">Q<img src="assets/icon_policy_quota.jpg"></a>
+                </th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/spike-arrest-policy"
+                        target="_blank" title="Spike Arrest | TRAFFIC MGMNT">SArr<img
+                            src="assets/icon_policy_spike-arrest.jpg"></a>
+                </th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/lookup-cache-policy"
+                        target="_blank" title="Lookup Cache | TRAFFIC MGMNT">LCche<img
+                            src="assets/icon_policy_traffic-management.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/populate-cache-policy"
+                        target="_blank" title="Populate Cache | TRAFFIC MGMNT">PCche<img
+                            src="assets/icon_policy_traffic-management.jpg"></a></th>
+
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/oauthv2-policy" target="_blank"
+                        title="OAuthV2 | SECURITY">OAv2<img src="assets/icon_policy_security.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/verify-api-key-policy"
+                        target="_blank" title="VerifyAPIKey | SECURITY">VAPIK<img
+                            src="assets/icon_policy_security.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/generate-jwt-policy"
+                        target="_blank" title="GenerateJWT | SECURITY">GJWT<img
+                            src="assets/icon_policy_security.jpg"></a></th>
+
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/json-xml-policy" target="_blank"
+                        title="JSONtoXML | MEDIATION"><img src="assets/icon_policy_json-to-xml.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/xml-json-policy" target="_blank"
+                        title="XMLtoJSON | MEDIATION"><img src="assets/icon_policy_xml-to-json.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/assign-message-policy"
+                        target="_blank" title="AssignMessage | MEDIATION"><img
+                            src="assets/icon_policy_assign-message.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/extract-variables-policy"
+                        target="_blank" title="ExtractVariables | MEDIATION"><img
+                            src="assets/icon_policy_extract-variable.jpg"></a>
+                </th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/key-value-map-operations-policy"
+                        target="_blank" title="KeyValueMapOperations | MEDIATION"><img
+                            src="assets/icon_policy_key-value-map-operations.jpg"></a></th>
+
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/java-callout-policy"
+                        target="_blank" title="JavaCallout | EXTENSION"><img
+                            src="assets/icon_policy_java-callout.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/javascript-policy" target="_blank"
+                        title="JavaScript | EXTENSION"><img src="assets/icon_policy_javaScript.jpg"></a></th>
+                <th><a href="https://docs.apigee.com/api-platform/reference/policies/service-callout-policy"
+                        target="_blank" title="ServiceCallout | EXTENSION"><img
+                            src="assets/icon_policy_service-callout.jpg"></a></th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            <tr>
+                <td colspan=16>
+                    <h2>Advanced: ALfA</h2>
+                </td>
+            </tr>
+            <tr>
+                <td>Google Books [ETA:20190815]</td>
+                <td></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td></td>
+                <td> </td>
+
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+            </tr>
+            <tr>
+                <td><a href="edge-dev-kvm-cache-firestore" target="_blank"><img src="assets/codelabs-logo-color.png" width=24> KVM Cache Firestore Target Server</a></td>
+
+                <td></td>
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+                <td><span class="green">&#x2713;</span></td>
+
+                <td> </td>
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+
+
+                <td> </td>
+                <td></span></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td><span class="green">&#x2713;</span></td>
+
+                <td> </td>
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+            </tr>
+            <tr>
+                <td><a href="edge-dev-javacallout" target="_blank"><img src="assets/codelabs-logo-color.png" width=24> JSON Sanitizer Java Callout Policy</a></td>
+
+                <td></td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+                <td> </td>
+
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+                <td> </td>
+            </tr>
+            <tr>
+                <td> </td>
+
+                <td></td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+            </tr>
+
+            <tr>
+                <td colspan=16>
+                    <h2>Foundational: APIJam</h2>
+                </td>
+            </tr>
+
+            <tr>
+                <td><a href="https://github.com/apigee/apijam/tree/master/Labs/Core/Lab%202%20Traffic%20Management%20-%20Throttle%20APIs"
+                        target="_blank"><img src="assets/github-logo-32px.png" width="20"> Lab
+                        2. Traffic Management : Throttle APIs</a></td>
+
+                <td></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td></td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+            </tr>
+
+            <tr>
+                <td><a href="https://github.com/apigee/apijam/tree/master/Labs/Core/Lab%204%20API%20Security%20-%20Securing%20APIs%20with%20API%20Keys"
+                        target="_blank"><img src="assets/github-logo-32px.png" width="20"> Lab
+                        4. API Security : Securing APIs using API Keys</a></td>
+
+                <td></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td></td>
+                <td> </td>
+
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+            </tr>
+
+            <tr>
+                <td><a href="https://github.com/apigee/apijam/tree/master/Labs/Core/Lab%205%20Traffic%20Management%20-%20Rate%20Limit%20APIs"
+                        target="_blank"><img src="assets/github-logo-32px.png" width=20> Lab
+                        5. Traffic Management : Rate Limit APIs</a></td>
+
+                <td><span class="green">&#x2713;</span></td>
+                <td><span class="green">&#x2713;</span></td>
+                <td> </td>
+                <td></td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+                <td> </td>
+
+                <td> </td>
+                <td> </td>
+                <td> </td>
+            </tr>
+
+        </tbody>
+    </table>
+
+
+
+    <h2>API Engineer</h2>
+    <a href="https://www.coursera.org/specializations/apigee-api-gcp" target="_blank"><img
+            src="https://www.coursera.org/favicon.ico" width=20px> Developing APIs with Google Cloud's Apigee API
+        Platform Specialization</a>
+    <hr>
+
+
+    <dl>
+
+        <h2><a href="edge-dev-kvm-cache-firestore"target="_blank">KVM Cache Firestore Target Server</a></h2>
+            <p>The purpose of this lab is to be a reasonable complexity collection of policies that a novice developer
+                can comprehend to be able to demonstrate advanced techniques of proxy authoring: </p>
+            <ul>
+                <li>Realistic collection of policies working in concert</li>
+                <li>Manipulations with KVM, Cache</li>
+                <li>Integration with Firestore/Google OpenID Connect</li>
+                <li>Firestore batch processing</li>
+                <li>Understanding sequence of policies with conditions as Flow Charts</li>
+            </ul>
+
+            <p>The lab uses Firestore database as a persistent storage. Being a Google product, it uses OIDC for
+                Authentication and Authorisation of access to Firestore API services. In this way, the lab also is an
+                OAuth/OIDC client that exposes students to yet another example of OAuth usage, which helps to build
+                hands-on experience required when discussing OAuth topic.</p>
+
+
+        <h2><a href="edge-dev-javacallout"target="_blank">JSON Sanitizer Java Callout Policy</a></h2>
+            <p>Java Callout lab guides you </p>
+            <ul>
+                <li>End-to-End Java Development Workflow</li>
+                <li>JMockit mock for Unit Testing of the Edge Java Callout</li>
+                <li>Local Maven Repo dependencies</li>
+                <li>Java Code that implements OWASP JSON Sanitizer module.</li>
+                <li>Echo proxy that returns back passed Headers and Body</li>
+                <li>JSON datagram sanitized by the policy</li>
+                <li>Remote JVM Debugging</li>
+            </ul>
+    </dl>
+
+
+
+<hr>
+
+
+
+    <body>

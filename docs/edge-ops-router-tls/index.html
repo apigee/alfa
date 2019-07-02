@@ -1,0 +1,540 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Edge Ops Training. Router 1-Way TLS Configuration</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="UA-143092999-1"
+                  id="edge-ops-router-tls"
+                  title="Edge Ops Training. Router 1-Way TLS Configuration"
+                  environment="web"
+                  feedback-link="https://github.com/apigee/alfa/issues/new?title=[apigee-ops-training-router-tls]:&amp;labels[]=content-platform&amp;labels[]=apigee">
+    
+      <google-codelab-step label="Introduction and VHost Layout" duration="2">
+        <p>The Lab will walk you through the following tasks:</p>
+<ul>
+<li>Create Certificate Authority</li>
+<li>Generate Server&#39;s Private Key, Certificate request, and Sign Public Key</li>
+<li>Edge Key Store</li>
+<li>Create and configure Virtual Host</li>
+<li>Using curl to send 1wTLS requests</li>
+</ul>
+<p>This Codelab guides you through the hands-on experience of generating self-signed certificates and its deployment into the VHost object of Apigee Edge.</p>
+<p>Even that this lab is tailored to an On-premises Edge installation, it is applicable to Apigee Cloud as well.</p>
+<p>We assume that traininglab organization that has prod environment are provisioned and that two virtual hosts are created in the prod environment:</p>
+<table>
+<tr><td colspan="1" rowspan="1"><p>default</p>
+</td><td colspan="1" rowspan="1"><p>9001</p>
+</td><td colspan="1" rowspan="1"><p>traininglab-prod.apigee.net</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>secure</p>
+</td><td colspan="1" rowspan="1"><p>9005</p>
+</td><td colspan="1" rowspan="1"><p>api.traininglab.com</p>
+</td></tr>
+</table>
+<google-codelab-survey survey-id="edge-ops-router-tls-1">
+<h4>How will you use this tutorial?</h4>
+<paper-radio-group>
+<paper-radio-button>Only read through it</paper-radio-button>
+<paper-radio-button>Read it and complete the exercises</paper-radio-button>
+</paper-radio-group>
+<h4>How would you rate your experience with Google Cloud Platform?</h4>
+<paper-radio-group>
+<paper-radio-button>Novice</paper-radio-button>
+<paper-radio-button>Intermediate</paper-radio-button>
+<paper-radio-button>Proficient</paper-radio-button>
+</paper-radio-group>
+</google-codelab-survey>
+<h2 is-upgraded>Setting UP CA Authority</h2>
+<p>You can define/create your CA authority on any of the systems, Linux/Unix or Windows. </p>
+<p>The most trouble-free way to do it, is on your Linux box. I.e., Node 1, in the root home (~) directory.</p>
+<p>If done on Windows, you are recommended to download and install openssl utility. You also need to have a Java SDK installed to have an access to jar utility.</p>
+<aside class="warning"><p><strong>WARNING</strong>: For Windows OS, key differences and additional steps are:</p>
+<p>-- hosts file location: C:\Windows\System32\drivers\etc</p>
+<p>To edit the hosts file, type Notepad in start search and right-click on the Notepad result. Select <em>Run as administrator</em>. Open the Hosts file, make the necessary changes, and then click Save.</p>
+<p>-- Certificate manager, click the Start button, type certmgr.msc in the search field, and click the Enter key. </p>
+</aside>
+<p><strong>Prerequisite for Windows</strong>: openssl utility; download it from <a href="https://indy.fulgan.com/SSL/openssl-1.0.2l-i386-win32.zip" target="_blank">https://indy.fulgan.com/SSL/openssl-1.0.2l-i386-win32.zip</a></p>
+<aside class="special"><p><strong>NOTE: </strong>Good advice. If not done yes, download and install git for windows. This way you will have access to GitShell and a number of utilities, including openssl, that are required for completing activities in this lab.</p>
+</aside>
+<aside class="warning"><p><strong>WARNING</strong>: Two operations, edit /etc/hosts file and Keychain Access require root access permissions on Mac or equivalent Run As Administrator launch option on Windows.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="As CA Admin: Create Certificate Authority" duration="10">
+        <aside class="warning"><p><strong>WARNING</strong>: Your certificate is not working? Meet the Logjam, <a href="https://www.openssl.org/blog/blog/2015/05/20/logjam-freak-upcoming-changes/" target="_blank">https://www.openssl.org/blog/blog/2015/05/20/logjam-freak-upcoming-changes/</a></p>
+</aside>
+<aside class="warning"><p><strong>WARNING</strong>: Check the version of your openssl package. If it is older than 1.0.2, the generated certificate will not be accepted by a later Node.js interpreter. As Node.js uses  openssl libraries, chances are you have fresh node but stale openssl utility. </p>
+</aside>
+<aside class="special"><p><strong>NOTE</strong>: If you are using an editor to create/edit files in this section, make sure that those files are stored in ANSI encoding, i.e., not UTF-8 or other.</p>
+</aside>
+<p>1. CA admin: Create a directory edge-tls that will contains CA folders. In your project working folder, edge-tls, create folder rootca and go into it.</p>
+<pre>cd &lt;your-working-folder&gt;/edge-tls
+mkdir rootca
+cd rootca</pre>
+<p>2. CA admin: In the rootca folder, setup ca folders and serial numbers for certificates, crl, and  init the index.db file.</p>
+<pre>mkdir ca
+echo &#34;1001&#34; &gt; ca/serial
+echo &#34;1001&#34; &gt; ca/crlnumber
+touch ca/index.db
+mkdir ca-certs</pre>
+<aside class="special"><p><strong>NOTE</strong>: For touch command, in Windows execute</p>
+<p><code>copy con ca/index.db</code></p>
+<p>then Ctrl+Z, Enter</p>
+</aside>
+<p>3. CA admin: Generate CA&#39;s private key.</p>
+<pre>openssl genrsa -aes256 -out ca/rootca-key.pem 2048
+
+Pass phrase: MockServer123</pre>
+<p>4. CA admin: For a number of certificate-related operations, it is tedious to use command-line options. The <code>.conf</code> file eases the burden. </p>
+<p>Create <code>ca.conf</code> file in the <code>edge-tls/rootca</code> folder with following contents:</p>
+<pre><code>dir = .
+
+[ ca ]
+default_ca              = root_ca
+
+[ root_ca ]
+database                = $dir/ca/index.db
+serial                  = $dir/ca/serial
+crlnumber               = $dir/ca/crlnumber
+certificate             = $dir/ca-certs/rootca-crt.pem
+private_key             = $dir/ca/rootca-key.pem
+new_certs_dir           = $dir/ca-certs
+default_days            = 365
+default_md              = sha256
+default_crl_days        = 30
+email_in_dn             = no
+unique_subject          = no
+crl_extensions          = ca_crl_ext
+x509_extensions         = ca_req_ext
+policy                  = MatchingPolicy
+
+[ req ]
+default_bits            = 2048
+encrypt_key             = no            # non-prod
+default_md              = sha256
+utf8                    = yes
+string_mask             = utf8only
+prompt                  = yes          # Prompt for DN input
+distinguished_name      = ca_dn        # How to handle the distinguished name when requesting a certificate
+x509_extensions         = ca_req_ext   # X.509 extensions to use when requesting a certificate
+
+[ ca_dn ]
+countryName                             = Country Name (2 letter code)
+countryName_default                     = UK
+stateOrProvinceName                     = State or Province Name (full name)
+stateOrProvinceName_default             = England
+localityName                            = Locality Name (eg, city)
+localityName_default                    = Kingston
+organizationName                        = Organization Name (eg, company)
+organizationName_default                = Mock Server Ltd.
+organizationalUnitName                  = Organizational Unit Name (eg, section)
+organizationalUnitName_default          = Security Dept
+commonName                              = Common Name
+emailAddress                            = Contact email for this Certificate
+emailAddress_default                    = admin@mockserver.com
+
+
+[ MatchingPolicy ]
+countryName             = match         # Must match CA&#39;s countryName
+stateOrProvinceName     = optional      # optional input
+localityName            = optional      # optional input
+organizationName        = supplied      # Must supply organizationName
+organizationalUnitName  = optional      # optional input
+commonName              = supplied      # Must be supplied
+emailAddress            = supplied      # supplied for contact purposes
+
+
+[ ca_req_ext ]
+basicConstraints = critical, CA:true
+keyUsage = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always
+authorityInfoAccess = OCSP;URI:http://ocsp.mockserver.com:3000, caIssuers;URI:http://ocsp.mockserver.com:3000/rootCA.crt
+crlDistributionPoints = URI:http://ocsp.mockserver.com:3000/rootCRL.crl
+
+[ server_req_ext ]
+basicConstraints = CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectKeyIdentifier = hash
+authorityInfoAccess = OCSP;URI:http://ocsp.mockserver.com:3000, caIssuers;URI:http://ocsp.mockserver.com:3000/rootCA.crt
+crlDistributionPoints = URI:http://ocsp.mockserver.com:3000/rootCRL.crl
+
+[ client_req_ext ]
+basicConstraints = CA:FALSE
+keyUsage = critical,digitalSignature
+extendedKeyUsage = clientAuth
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+authorityInfoAccess = OCSP;URI:http://ocsp.mockserver.com:3000, caIssuers;URI:http://ocsp.mockserver.com:3000/rootCA.crt
+crlDistributionPoints = URI:http://mockserver.com:3000/rootCA.crl
+
+[ ca_crl_ext ]
+authorityKeyIdentifier = keyid:always
+authorityInfoAccess = caIssuers;URI:http://ocsp.mockserver.com:3000/rootCA.crt
+
+[ ca_ocsp_ext ]
+basicConstraints = CA:FALSE
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, OCSPSigning
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always</code></pre>
+<p>5. CA admin: Using CA key, generate a CA certificate.</p>
+<pre>openssl req -config ca.conf -x509 -new -nodes -key ca/rootca-key.pem -out ca-certs/rootca-crt.pem -days 3650
+
+...
+Country Name (2 letter code) [UK]:
+State or Province Name (full name) [England]:
+Locality Name (eg, city) [Kingston]:
+Organization Name (eg, company) [Mock Server Ltd.]:
+Organizational Unit Name (eg, section) [Security Dept]:
+Common Name []:mockserver.com
+admin@mockserver.com [admin@mockserver.com]:</pre>
+<p>6. CA admin: Verify root CA certificate</p>
+<pre>openssl x509 -noout -text -in ca-certs/rootca-crt.pem</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="As Edge Admin: Create private key and certificate request" duration="5">
+        <aside class="warning"><p><strong>NOTE</strong>: <code>NET::ERR_CERT_COMMON_NAME_INVALID</code> </p>
+<p>Starting from version 58, Chrome deprecates Subject CN matching. It means that you need to know how Subject Alternative Name configuration is done.</p>
+</aside>
+<aside class="special"><p><strong>For Details</strong>, see: https://textslashplain.com/2017/03/10/chrome-deprecates-subject-cn-matching/</p>
+</aside>
+<p>1. In the <code>edge-tls/rootca</code> directory folders for server key, request and certificates.</p>
+<pre>mkdir server
+mkdir server-certs</pre>
+<p>2. Go to server folder.</p>
+<pre>cd server</pre>
+<p>3. Server Admin: Prepare <code>.conf</code> file contents for the server certificate, file server-api-traininglab.conf in the rootca folder:</p>
+<pre><code>[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+req_extensions = req_ext
+distinguished_name = dn
+
+[ dn ]
+C=UK
+ST=Surrey
+L=Guildford
+O=Training Lab Ltd
+OU=API Team
+emailAddress=admin@traininglab.com
+CN = traininglab.com
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = api.traininglab.com
+DNS.2 = api.traininglab.co.uk</code></pre>
+<p>4. Server Admin: While in rootca, generate the key. Use password: TrainingLab2017</p>
+<pre>openssl genrsa -aes256 -out server/traininglab-key.pem 2048</pre>
+<p>5. Server Admin: Generate Certificate Signing Request, CSR.</p>
+<pre>openssl req -config server-api-traininglab.conf -key server/traininglab-key.pem -out server/traininglab-csr.pem -days 3650 -new -sha256</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="As CA Admin: Sign the Server Request" duration="5">
+        <p>1. CA Admin: Inspect certificate, extract SANs for the following step.</p>
+<pre>openssl req -noout -text -in server/traininglab-csr.pem</pre>
+<p>2. CA Admin: Validate SAN names. Inspect extensions section.</p>
+<pre><code>       Requested Extensions:
+            X509v3 Subject Alternative Name: 
+                DNS:api.traininglab.com, DNS:api.traininglab.co.uk</code></pre>
+<p>3. CA Admin: Prepare configuration file to sign server request with required SAN section.</p>
+<p>Clone <code>ca.conf</code> file to <code>ca-san-traininglab.conf</code>.</p>
+<pre>cp ca.conf ca-san-traininglab.conf</pre>
+<p>4. CA Admin: Add fragment to the end of section <code>[ server_req_ext ]</code> after the line with crlDistributionPoints setting:</p>
+<pre><code>subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = api.traininglab.com
+DNS.2 = api.traininglab.co.uk</code></pre>
+<p>5. CA Admin: Perform sign operation.</p>
+<pre>openssl ca -config ca-san-traininglab.conf -extensions server_req_ext -in server/traininglab-csr.pem -out server-certs/traininglab-crt.pem</pre>
+<p>Enter the <code>rootca-key.pem</code> password MockServer123.</p>
+<p>Say y to Sign the certificate? question.</p>
+<p>Say y to 1 out of 1 certificate requests certified, commit? question.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="As Edge Admin: Validate Server Certificate After Receiving it From CA Admin" duration="2">
+        <p>1. Server Admin: Verify certificate</p>
+<pre>openssl x509 -noout -text -in server-certs/traininglab-crt.pem</pre>
+<p>Notice in the output:</p>
+<pre><code>        X509v3 extensions:
+            X509v3 Extended Key Usage: 
+                TLS Web Server Authentication, TLS Web Client Authentication
+
+            X509v3 Subject Alternative Name: 
+                DNS:api.traininglab.com, DNS:api.traininglab.co.uk</code></pre>
+<p>2. Server Admin: Verify chain of trust</p>
+<pre>openssl verify -CAfile ca-certs/rootca-crt.pem server-certs/traininglab-crt.pem 
+
+server-certs/traininglab-crt.pem: OK</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create traininglab Key Store" duration="5">
+        <p>1. Make a folder for a jar file <code>server-certs/traininglabKeystore</code></p>
+<p>2. Go to the folder</p>
+<p>3. In the folder, create: sub-folder <code>META-INF</code></p>
+<p>4. Concatenate whole certificate chain <strong><code>server-certs/traininglab-crt.pem</code></strong> and <strong><code>ca-certs/rootca-crt.pem</code></strong> into <strong><code>traininglab-crt-chain.pem</code></strong> file</p>
+<aside class="warning"><p><strong>IMPORTANT:</strong> The concatenated certificate list have to be in a specific order: a client certificate first, then all interim certificate,  and the last must be a root certificate.</p>
+</aside>
+<pre>cat server-certs/traininglab-crt.pem ca-certs/rootca-crt.pem &gt; server-certs/traininglabKeystore/traininglab-crt-chain.pem</pre>
+<aside class="special"><p><strong>NOTE: </strong>In Windows, use type command instead of cat. </p>
+</aside>
+<p>5.  Copy the <code>server/traininglab-key.pem</code> in this folder.</p>
+<p>6. In the <code>META-INF</code> create the <strong><code>descriptor.properties</code></strong> file and add following lines:</p>
+<pre><code>certFile=traininglab-crt-chain.pem
+keyFile=traininglab-key.pem</code></pre>
+<p>7. Inside the <code>traininglabKeystore</code> folder run commands  </p>
+<pre>jar -cf traininglabKeystore.jar traininglab-crt-chain.pem traininglab-key.pem 
+jar -uf traininglabKeystore.jar META-INF/descriptor.properties</pre>
+<aside class="warning"><p><strong><code>WARNING:</code></strong><code> You need JDK installed on your machine for being able to run jar command.</code></p>
+</aside>
+<p>The contents of the <code>traininglabKeyStore</code> folder should look like:</p>
+<p class="image-container"><img style="width: 518.50px" src="img/9e07ae0884ebee5d.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Configure .netrc for curl" duration="2">
+        <p>1. Configure the contents of <code>~/.netrc</code> file so that you can use -n curl option</p>
+<p>Enter use IP of your MS node, email and password of Edge administrator.</p>
+<pre>machine 52.55.223.129 login admin@exco.com password Apigee123!</pre>
+<p>2. Verify that you can execute MS Management API calls by fetching the list of planet organisations.</p>
+<pre>$ curl -n http://10.132.0.9:8080/v1/o 
+
+[ &#34;VALIDATE&#34;, &#34;org&#34; ]</pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create the keystore and upload the JAR file" duration="8">
+        <p>1. Create the keystore object</p>
+<pre>curl -H &#34;Content-Type: text/xml&#34; http://52.55.223.129:8080/v1/o/traininglab/environments/prod/keystores -d &#34;&lt;KeyStore name=\&#34;traininglab\&#34;/&gt;&#34; -n</pre>
+<p>Output:</p>
+<pre><code>{
+  &#34;certs&#34; : [ ],
+  &#34;keys&#34; : [ ],
+  &#34;name&#34; : &#34;traininglab&#34;
+}</code></pre>
+<p>2. Validate that the keystore object is created.</p>
+<pre>curl http://52.55.223.129:8080/v1/o/traininglab/environments/prod/keystores -n</pre>
+<p>Output:</p>
+<pre><code>[ &#34;traininglab&#34; ]</code></pre>
+<p>3. Upload a JAR file to a Keystore API</p>
+<aside class="special"><p><strong>NOTE: </strong>as we are using relative reference to the keystore .jar file, you need to execute this command while in the <code>rootca/server-certs/traininglabKeystore</code> folder. </p>
+</aside>
+<pre>curl -X POST -H &#34;Content-Type: multipart/form-data&#34; -F file=&#34;@traininglabKeystore.jar&#34; &#34;http://52.55.223.129:8080/v1/o/traininglab/environments/prod/keystores/traininglab/keys?alias=traininglab-vhost&amp;password=TrainingLab2017&#34; -n</pre>
+<p>4. Verify the keystore</p>
+<pre>curl http://52.55.223.129:8080/v1/o/traininglab/environments/prod/keystores/traininglab -n</pre>
+<p>Output:</p>
+<pre><code>{
+  &#34;certs&#34; : [ &#34;traininglab-vhost-cert&#34; ],
+  &#34;keys&#34; : [ &#34;traininglab-vhost&#34; ],
+  &#34;name&#34; : &#34;traininglab&#34;
+}</code></pre>
+<aside class="special"><p><strong>NOTE: </strong>If a keystore is incorrectly generated, to update it, you need first remove key and certifcate(s) by using following commands:</p>
+<p><code>curl -X DELETE http://52.55.223.129:8080/v1/o/traininglab/environments/prod/keystores/traininglab/certs/traininglab-vhost-cert -n</code></p>
+<p><code>curl -X DELETE http://52.55.223.129:8080/v1/o/traininglab/environments/prod/keystores/traininglab/keys/traininglab-vhost -n</code></p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Create Virtual Host" duration="5">
+        <p>1. Create Virtual Host using Management API command.</p>
+<pre>curl -n -X POST  -H &#34;Content-Type: application/json&#34; -d &#39;{
+  &#34;hostAliases&#34;: [
+    &#34;api.traininglab.com&#34;
+  ],
+  &#34;interfaces&#34;: [],
+  &#34;name&#34;: &#34;secure&#34;,
+  &#34;port&#34;: &#34;9005&#34;,
+  &#34;sSLInfo&#34;: {
+    &#34;ciphers&#34;: [],
+    &#34;clientAuthEnabled&#34;: &#34;false&#34;,
+    &#34;enabled&#34;: &#34;true&#34;,
+    &#34;ignoreValidationErrors&#34;: false,
+    &#34;keyAlias&#34;: &#34;traininglab-vhost&#34;,
+    &#34;keyStore&#34;: &#34;traininglab&#34;,
+    &#34;protocols&#34;: []
+  }
+}&#39; &#34;http://52.55.223.129:8080/v1/organizations/traininglab/environments/prod/virtualhosts&#34;</pre>
+<p>Output:</p>
+<pre><code>{
+  &#34;hostAliases&#34; : [ &#34;api.traininglab.com&#34; ],
+  &#34;interfaces&#34; : [ ],
+  &#34;listenOptions&#34; : [ ],
+  &#34;name&#34; : &#34;secure&#34;,
+  &#34;port&#34; : &#34;9005&#34;,
+  &#34;sSLInfo&#34; : {
+    &#34;ciphers&#34; : [ ],
+    &#34;clientAuthEnabled&#34; : &#34;false&#34;,
+    &#34;enabled&#34; : &#34;true&#34;,
+    &#34;ignoreValidationErrors&#34; : false,
+    &#34;keyAlias&#34; : &#34;traininglab-vhost&#34;,
+    &#34;keyStore&#34; : &#34;traininglab&#34;,
+    &#34;protocols&#34; : [ ]
+  }
+}</code></pre>
+<p>2. Verify training lab keystore configuration using Edge UI.</p>
+<p>Navigate to Admin/TLS Certificates</p>
+<p class="image-container"><img style="width: 624.00px" src="img/a55069e52fe55b6e.png"></p>
+<p>3. Verify Secure Virtual Host configuration using Edge UI.</p>
+<p>Navigate to APIs/Environment Configuration, Virtual Hosts. Click on Show of secure VHost.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/f13e515279980bc5.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Deploy Echo Proxy to secure Virtual Host" duration="5">
+        <p>1. Using APIs/API Proxies, open Echo proxy editor.</p>
+<p>2. Switch to <code>DEVELOP</code> tab.</p>
+<p>3. Verify that the PreFlow event of the default Proxy Endpoint is active.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/13cbcda6b1fcbca2.png"></p>
+<p>4. Using XML Editor, add <code>&lt;VirtualHost&gt;secure&lt;/VirtualHost&gt;</code> element to the end of the <code>&lt;HTTPProxyConnection/&gt;</code> element</p>
+<p class="image-container"><img style="width: 502.50px" src="img/1fcca207ffc60248.png"></p>
+<p>5. Press the Save button. Confirm to Save Revision dialog.</p>
+<p>6. Click on the <code>OVERVIEW</code> tab and verify that Echo proxy is deployed into correct virtual hosts.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/e4f477d8cc821733.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Configuring Dev Machine to Recognise a hostname" duration="2">
+        <p>1. For TLS-enables endpoints, we cannot use IP address as a hostname. Add router&#39;s public IP address on your node 1  to the <code>/etc/hosts</code> file</p>
+<pre><code>34.207.96.3 api.traininglab.com</code></pre>
+<aside class="special"><p><strong>NOTE:</strong> You need to use sudo privileges to perform this operation.</p>
+</aside>
+<aside class="special"><p><strong>NOTE</strong>: Windows users, edit <code>C:\Windows\System32\Drivers\etc\hosts</code> file.</p>
+</aside>
+<p>2. Check the connection, run <code>ping api.traininglab.com</code></p>
+<pre><code>$ ping api.traininglab.com
+PING api.traininglab.com (34.207.96.3): 56 data bytes
+64 bytes from 34.207.96.3: icmp_seq=0 ttl=64 time=0.047 ms
+64 bytes from 34.207.96.3: icmp_seq=1 ttl=64 time=0.058 ms
+64 bytes from 34.207.96.3: icmp_seq=2 ttl=64 time=0.150 ms
+^C</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Using curl with SSC" duration="2">
+        <p>1. Try to run curl command to the /echo endpoint &#34;as is&#34;, i.e., without any certificates. IF your root certificate is not trusted on a system level, then you will see:</p>
+<pre><code>$ curl -v https://api.traininglab.com:9005/echo
+*   Trying 34.207.96.3...
+* TCP_NODELAY set
+* Connected to api.traininglab.com (34.207.96.3) port 9005 (#0)
+* SSL certificate problem: Invalid certificate chain
+* Curl_http_done: called premature == 1
+* Closing connection 0
+curl: (60) SSL certificate problem: Invalid certificate chain
+More details here: https://curl.haxx.se/docs/sslcerts.html</code></pre>
+<p>2. Provide trust certificate chain to validate our server certificate.</p>
+<pre><code>$ curl --cacert ca-certs/rootca-crt.pem -v https://api.traininglab.com:9005/echo
+
+
+*   Trying 34.207.96.3...
+* TCP_NODELAY set
+* Connected to api.traininglab.com (34.207.96.3) port 9005 (#0)
+* TLS 1.2 connection using TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+* Server certificate: traininglab.com
+* Server certificate: mockserver.com
+&gt; GET /echo HTTP/1.1
+&gt; Host: api.traininglab.com:9005
+&gt; User-Agent: curl/7.51.0
+&gt; Accept: */*
+&gt; 
+&lt; HTTP/1.1 200 OK
+&lt; Date: Sat, 02 Dec 2017 04:09:06 GMT
+&lt; Content-Length: 0
+&lt; Connection: keep-alive
+&lt; Host: api.traininglab.com:9005
+&lt; X-Forwarded-For: 86.134.79.188
+&lt; X-Forwarded-Port: 9005
+&lt; X-Forwarded-Proto: https
+&lt; User-Agent: curl/7.51.0
+&lt; Accept: */*
+&lt; Server: Apigee Router
+&lt; 
+* Curl_http_done: called premature == 0
+* Connection #0 to host api.traininglab.com left intact
+bash-3.2$ </code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Using SSC on OS Level" duration="10">
+        <p>1. Using Chrome, try to hit the echo proxy.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/6c0926bffc01e097.png"></p>
+<h2 is-upgraded>Configuring Machine to Trust the Self-Signed Certificate</h2>
+<aside class="special"><p><strong>NOTE</strong>: PEM certificates usually have extensions such as .pem, .crt, .cer, and .key. They are Base64 encoded ASCII files and contain &#34;<code>-----BEGIN CERTIFICATE-----</code>&#34; and &#34;<code>-----END CERTIFICATE-----</code>&#34; statements. Server certificates, intermediate certificates, and private keys can all be put into the PEM format.</p>
+</aside>
+<h2 is-upgraded>Mac OSX: Using Apple Keychain Access to register CA Trust certificate</h2>
+<p>1. Open Keychain Access utility (Cmd+Space, keychain...)</p>
+<p>2. Select System Keychain on the left.</p>
+<p>3. Select File/Import Items...</p>
+<p>4. Select &#39;our company&#39;s chain trust, rootca-crt.pem file and Press Open button.</p>
+<p>5. Type your password to allow the operation. Click Modify keychain button.</p>
+<p>6. Double-click imported certificate; Open Trust sub-tree and change When Using this certificate combo-box item to Always Trust.</p>
+<p>7. Close the window and confirm your password. Click Update Settings button.</p>
+<p class="image-container"><img style="width: 566.50px" src="img/4e4d3ff6cb73b812.png"></p>
+<h2 is-upgraded>Windows OS: Using Certificate Manager MMC snap-in to register CA Trust certificate</h2>
+<p>1. To access Certificate Manager, click the Start button, type certmgr.msc in the search field, and click the Enter key. </p>
+<p>2. Right-click Trusted Root Certification Authorities</p>
+<p>3. In menu select All Tasks, Import...</p>
+<p>4.  Click Browse... </p>
+<p>5. Change type to all Files navigate to the ca-certs/rootca.pem</p>
+<p>6. Click Open. Press Next. </p>
+<p>7. For Place all certificates in the following folder, click Browse... Chose Trusted Root Certification Authorities. Click OK</p>
+<p>8. Press Next and Finish.</p>
+<p>9. Important: This is a dialog that you agree that your computer Certificate Manager will trust any  certificates, signed by this CA certificate. Click Yes.</p>
+<p>From now on any certificate signed by our CA will be trusted on this computer.</p>
+<h2 is-upgraded>Validating SSC in OS using Chrome</h2>
+<p>1. Using Chrome when our root ca certificate is &#39;Always Trusted:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/c180d0cc07ee16fa.png"></p>
+<p>2. We can display and validate a certificate presented by a server using following openssl command:</p>
+<pre>openssl s_client -showcerts -connect 34.207.96.3:9005 -CAfile rootca-crt.pem &lt;/dev/null</pre>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

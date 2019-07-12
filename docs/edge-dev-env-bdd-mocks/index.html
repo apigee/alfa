@@ -27,7 +27,7 @@
                   environment="web"
                   feedback-link="https://github.com/apigee/alfa/issues/new?title=[edge-dev-env-bdd-mocks]:&amp;labels[]=content-platform&amp;labels[]=apigee">
     
-      <google-codelab-step label="Introduction" duration="0">
+      <google-codelab-step label="Introduction" duration="2">
         <p>It takes time and some learning curve to set up a development environment for a person that begins her Apigee Edge journey.  The purpose of this lab is to ease the pain for both, Mac, Windows, and Linux users, especially with respect of enterprise environments where some additional attention to http(s) proxy configurations is required.</p>
 <p>We also add a new BDD test and will run test requests using different http clients.</p>
 <h2 is-upgraded>Apigee org and Toolkit</h2>
@@ -43,7 +43,7 @@
 
       </google-codelab-step>
     
-      <google-codelab-step label="Setting up and Configuring Tech Stack Components and Tools" duration="0">
+      <google-codelab-step label="Setting up Apigee Account" duration="10">
         <h2 is-upgraded>Apigee free trial org account </h2>
 <p>1. Go to <a href="http://enterprise.apigee.com/" target="_blank">http://enterprise.apigee.com/</a> </p>
 <p>If you are not logged in, you will be redirected to <a href="https://login.apigee.com/login" target="_blank">https://login.apigee.com/login</a> URL.</p>
@@ -65,11 +65,24 @@
 <p>6. Sign in to your account using &lt;your-edge-email&gt;/&lt;your-edge-password&gt; credentials.</p>
 <aside class="special"><p>NOTE: You can click on Switch to Classic button in the bottom left corner <img style="width: 252.50px" src="img/e9c28bd34087abb7.png"></p>
 </aside>
+<google-codelab-survey survey-id="edge-dev-env-bdd-mocks-1">
+<h4>How will you use this tutorial?</h4>
+<paper-radio-group>
+<paper-radio-button>Only read through it</paper-radio-button>
+<paper-radio-button>Read it and complete the exercises</paper-radio-button>
+</paper-radio-group>
+<h4>How would you rate your experience with Google Cloud Platform?</h4>
+<paper-radio-group>
+<paper-radio-button>Novice</paper-radio-button>
+<paper-radio-button>Intermediate</paper-radio-button>
+<paper-radio-button>Proficient</paper-radio-button>
+</paper-radio-group>
+</google-codelab-survey>
 
 
       </google-codelab-step>
     
-      <google-codelab-step label="Postman" duration="0">
+      <google-codelab-step label="Configuring Tech Stack Components and Tools" duration="30">
         <p>Select and install Postman application according to your OS:</p>
 <p><a href="https://www.getpostman.com/downloads/" target="_blank">https://www.getpostman.com/downloads/</a></p>
 <h2 is-upgraded>JSON View</h2>
@@ -157,8 +170,8 @@ Apache Maven 3.3.9...</pre>
 
       </google-codelab-step>
     
-      <google-codelab-step label="Configuring http(s) Proxy for Dev and Runtime Components" duration="0">
-        <p> Open Chrome and go to the URL below to see the proxy details</p>
+      <google-codelab-step label="Configuring http(s) Proxy for Dev and Runtime Components" duration="10">
+        <p>Open Chrome and go to the URL below to see the proxy details</p>
 <p>Turn off proxying for localhost:</p>
 <p>command line:</p>
 <pre><code>export no_proxy=&#34;127.0.0.1,localhost,$(hostname -i)&#34;</code></pre>
@@ -230,7 +243,7 @@ Apache Maven 3.3.9...</pre>
 
       </google-codelab-step>
     
-      <google-codelab-step label="Apigee Apickli Example Project" duration="0">
+      <google-codelab-step label="Apigee Apickli Example Project" duration="10">
         <h2 is-upgraded>Deployment Diagram</h2>
 <p>The amok project contains three components</p>
 <ul>
@@ -274,7 +287,7 @@ cd ~/dbc</pre>
 
       </google-codelab-step>
     
-      <google-codelab-step label="Build and run BDD Project" duration="0">
+      <google-codelab-step label="Build and run BDD Project" duration="10">
         <h2 is-upgraded>Customise apigee-amok project execution environment</h2>
 <p>1. Back in the terminal window, go to <strong>apickli</strong> project</p>
 <pre>cd ~/dbc/amok/examples/apigee-amok/tests</pre>
@@ -338,7 +351,7 @@ ln -fs ../../node_modules/apickli/apickli-gherkin.js apickli-gherkin.js</pre>
 
       </google-codelab-step>
     
-      <google-codelab-step label="Execute and Trace proxy requests" duration="0">
+      <google-codelab-step label="Execute and Trace proxy requests" duration="3">
         <h2 is-upgraded>Trace Proxy request</h2>
 <p>1. In your browser, open <a href="https://enterprise.apigee.com" target="_blank">https://enterprise.apigee.com</a> and log in.</p>
 <p>2. Select <strong>APIs/API Proxies</strong> menu item</p>
@@ -359,7 +372,7 @@ ln -fs ../../node_modules/apickli/apickli-gherkin.js apickli-gherkin.js</pre>
 
       </google-codelab-step>
     
-      <google-codelab-step label="Adding New BDD Test" duration="0">
+      <google-codelab-step label="Adding New BDD Test" duration="3">
         <p>1. Add following scenario to the integration/FuncionalTests.feature file:</p>
 <pre><code>        Scenario: I should get successful payment object created response
                 Given I set x-mock-response-code header to 201
@@ -375,7 +388,7 @@ ln -fs ../../node_modules/apickli/apickli-gherkin.js apickli-gherkin.js</pre>
 
       </google-codelab-step>
     
-      <google-codelab-step label="Sending POST Request using Postman and curl clients" duration="0">
+      <google-codelab-step label="Sending POST Request using Postman and curl clients" duration="3">
         <h2 is-upgraded>Postman POST request</h2>
 <p>1. Open Postman</p>
 <p>2. In the Enter request URI text box, enter the URL of the mocked service</p>

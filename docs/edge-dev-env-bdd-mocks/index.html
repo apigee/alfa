@@ -1,0 +1,405 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Setting Up Apigee Edge Development Environment and Building BDD-Mock Project</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid="UA-143092999-1"
+                  id="edge-dev-env-bdd-mocks"
+                  title="Setting Up Apigee Edge Development Environment and Building BDD-Mock Project"
+                  environment="web"
+                  feedback-link="https://github.com/apigee/alfa/issues/new?title=[edge-dev-env-bdd-mocks]:&amp;labels[]=content-platform&amp;labels[]=apigee">
+    
+      <google-codelab-step label="Introduction" duration="0">
+        <p>It takes time and some learning curve to set up a development environment for a person that begins her Apigee Edge journey.  The purpose of this lab is to ease the pain for both, Mac, Windows, and Linux users, especially with respect of enterprise environments where some additional attention to http(s) proxy configurations is required.</p>
+<p>We also add a new BDD test and will run test requests using different http clients.</p>
+<h2 is-upgraded>Apigee org and Toolkit</h2>
+<p>Even that the steps are slightly skewed towards Mac users, the course and toolkit successfully run on each platform.</p>
+<p>There is a number of setting with regards to the firewall configurations, which are captured in the document, albeit in a terse form and always are slightly difference on a client site, depending on their security restrictions/proxy settings. </p>
+<p>Most tools are OS-specific installers and take care about platform differences automatically. (git, nodejs, vscode).  </p>
+<h2 is-upgraded>Windows proxies/NTLM Configuration</h2>
+<p>For <strong>Windows/NTLM</strong> environment, most of the command-line tools would need to use <code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code> environment variables and sometimes there might be a complication with <strong>NTLM</strong> configuration that we would need to consult your networking admins, but let&#39;s not get too pessimistic prior to trying it as sometimes it can just work.</p>
+<p>Usually, you can get to the Internet using <strong>Chrome</strong> or <strong>Internet Explorer</strong>, but not via CLI/Command Terminal. Easiest way to try it is to download <strong>curl</strong> for Windows and get it working.</p>
+<p>If yes, this points to a problem with <strong>NTLM</strong>-based proxy. In most of the cases, set up of http_proxy and https_proxy variables is sufficient. For a fraction of installations, <strong>NTLM</strong>-based proxy is required for user credentials to work. In those cases, you need to download and setup <code>http://cntlm.sourceforge.net/</code> utility.</p>
+<p>It is a simple <strong>NTLM</strong>-based proxy connector. It does for you an <strong>NTLM</strong> authentication but lets your command-line based utilities use simple proxy settings.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Setting up and Configuring Tech Stack Components and Tools" duration="0">
+        <h2 is-upgraded>Apigee free trial org account </h2>
+<p>1. Go to <a href="http://enterprise.apigee.com/" target="_blank">http://enterprise.apigee.com/</a> </p>
+<p>If you are not logged in, you will be redirected to <a href="https://login.apigee.com/login" target="_blank">https://login.apigee.com/login</a> URL.</p>
+<p class="image-container"><img style="width: 485.16px" src="img/a2791b781607e184.png"></p>
+<p>2. Click <strong>Create account</strong> link below SIGN IN button on the left. Fill the form Create your account:</p>
+<p><strong>Full Name:</strong> &lt;your-first-name-last-name&gt;</p>
+<p><strong>Username:</strong> &lt;your-user-name (these labs use dbcjd)&gt;</p>
+<p><strong>        Email:</strong> &lt;your-edge-email&gt;</p>
+<p><strong>Password:</strong> &lt;your-edge-password&gt;</p>
+<p><strong>Company:</strong> &lt;any&gt;</p>
+<p><strong>        Confirm:</strong> &lt;your-edge-password&gt;</p>
+<p>Agree to the <strong>Terms of Service</strong></p>
+<aside class="special"><p><strong>NOTE:</strong> Your password must contain at least one special character</p>
+</aside>
+<p>  Click <strong>SIGN UP</strong></p>
+<p>3. Respond on <strong>captcha</strong> challenge, select all relevant squares.</p>
+<p>4. Check your email inbox for an activation link.</p>
+<p>5. Activate account by clicking on email Activate your account link.</p>
+<p>6. Sign in to your account using &lt;your-edge-email&gt;/&lt;your-edge-password&gt; credentials.</p>
+<aside class="special"><p>NOTE: You can click on Switch to Classic button in the bottom left corner <img style="width: 252.50px" src="img/e9c28bd34087abb7.png"></p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Postman" duration="0">
+        <p>Select and install Postman application according to your OS:</p>
+<p><a href="https://www.getpostman.com/downloads/" target="_blank">https://www.getpostman.com/downloads/</a></p>
+<h2 is-upgraded>JSON View</h2>
+<p><a href="https://chrome.google.com/webstore/detail/jsonview/chklaanhfefbnpoihckbnefhakgolnmc" target="_blank">https://chrome.google.com/webstore/detail/jsonview/chklaanhfefbnpoihckbnefhakgolnmc</a></p>
+<h2 is-upgraded>git</h2>
+<p>1. Install from <a href="https://git-scm.com/download/mac" target="_blank">https://git-scm.com/download/mac</a> for Mac or <a href="https://git-scm.com/download/win" target="_blank">https://git-scm.com/download/win</a> for Windows</p>
+<p>2. Check the version</p>
+<pre># git --version
+
+git version 1.8.3.1</pre>
+<h2 is-upgraded>Apache Maven: Windows</h2>
+<aside class="special"><p><strong>NOTE: </strong>For Mac users, ~ is a home directory if a current user. An equivalent for Windows is %USERPROFILE%.</p>
+</aside>
+<p>1. Navigate to <a href="https://maven.apache.org/download.cgi" target="_blank">https://maven.apache.org/download.cgi</a></p>
+<p>2. Download <code>apache-maven-3.5.0-bin.zip</code> to</p>
+<p>3. Extract its contents to <code>%USERPROFILE%/bin</code></p>
+<p>It will create the folder <code>&lt;Drive&gt;:\Users\&lt;your-user-id&gt;\bin\apache-maven-3.5.0</code> in your profile home.</p>
+<p>4. Open <code>cmd</code> terminal.</p>
+<p>5. Execute</p>
+<pre>set M2_HOME=%USERPROFILE%\bin\apache-maven-3.5.0
+set M2=%M2_HOME%\bin
+set PATH=%M2%;%PATH%</pre>
+<aside class="special"><p><strong>NOTE: </strong>If your JAVA_HOME and path to Java is not setup, you can configure it</p>
+<p>set JAVA_HOME=C:\Program Files\Java\jdk1.7.0_51</p>
+<p>set PATH=%JAVA_HOME%\bin;%PATH</p>
+</aside>
+<p>6. Check maven functionality</p>
+<pre>mvn --version</pre>
+<aside class="warning"><p><strong>WARNING: </strong>Setting up environment variables in terminal window would set them only for your current session. If you want to persist them, put them into System Properties/Environment Variables/User Variables</p>
+</aside>
+<h2 is-upgraded>Apache Maven: Mac/Linux</h2>
+<p>1. Download tarball <code>apache-maven-3.5.0-bin.tar.gz</code> from <a href="https://maven.apache.org/download.cgi" target="_blank">https://maven.apache.org/download.cgi</a></p>
+<p>2. Untar into <code>~/bin</code></p>
+<p>3. Update the <code>PATH</code> environment variable</p>
+<p>For Mac:</p>
+<pre>export M2_HOME=~/bin/apache-maven-3.3.9
+export M2=$M2_HOME/bin
+export PATH=$M2:$PATH</pre>
+<p>4. Validate Maven functionality and version</p>
+<pre># mvn --version
+
+Apache Maven 3.3.9...</pre>
+<h2 is-upgraded>Apache Maven Edge Identity configuration on Mac and Windows</h2>
+<p>1. Go to a <strong>Maven</strong> home folder for user configuration</p>
+<p>For MacOS/Linux:</p>
+<pre>cd ~/.m2</pre>
+<p>For Windows:</p>
+<p>cd %USERPROFILE%/.m2</p>
+<p>2. Create or edit <code>setting.xml</code> file and <strong>dbc</strong> identity profile</p>
+<pre><code>&lt;settings&gt;
+ &lt;profiles&gt;
+   &lt;profile&gt;
+     &lt;id&gt;dbcjd&lt;/id&gt;
+     &lt;properties&gt;
+       &lt;username&gt;{your-edge-email}&lt;/username&gt;
+       &lt;password&gt;{your-edge-password}&lt;/password&gt;
+     &lt;/properties&gt;
+   &lt;/profile&gt;
+&lt;/profiles&gt;
+&lt;/settings&gt;</code></pre>
+<h2 is-upgraded>nodejs</h2>
+<p>Download and install your OS-specific version from <a href="https://nodejs.org/en/download/" target="_blank">https://nodejs.org/en/download/</a></p>
+<h2 is-upgraded>Curl for Windows</h2>
+<p>Download curl for windows from this page https://curl.haxx.se/download.html</p>
+<p>Find a link for your Windows 64 or 32 bit platform. I.e., </p>
+<p><a href="https://dl.uxnr.de/build/curl/curl_winssl_msys2_mingw64_stc/curl-7.53.1/curl-7.53.1.zip" target="_blank">https://dl.uxnr.de/build/curl/curl_winssl_msys2_mingw64_stc/curl-7.53.1/curl-7.53.1.zip</a></p>
+<h2 is-upgraded>OpenSSL for Windows</h2>
+<p>There are ways on Windows to do x509-related operations. For example using <a href="http://www.entrust.net/knowledge-base/technote.cfm?tn=8924" target="_blank">http://www.entrust.net/knowledge-base/technote.cfm?tn=8924</a>. However, it will not help you if/when need to do those operations on your Linux boxes. For a smooth inter-platform experience, it is simpler and easier to use openssl utility, which has native Windows port.</p>
+<p>For the PKI certificate-related Labs, we need a swiss-knife of TLS/SSL utilities, the openssl. </p>
+<p>You can select a pre-built binary distribution from <a href="https://wiki.openssl.org/index.php/Binaries" target="_blank">https://wiki.openssl.org/index.php/Binaries</a>, ie., <a href="https://indy.fulgan.com/SSL/openssl-1.0.2l-i386-win32.zip" target="_blank">https://indy.fulgan.com/SSL/openssl-1.0.2l-i386-win32.zip</a>.</p>
+<p>Then unzip and put an .exe and .dll files in a folder of your choice on the PATH. </p>
+<p>Run openssl version to validation functionality and a version of the utility.</p>
+<h2 is-upgraded>VS Code</h2>
+<p>1. Install from <a href="https://code.visualstudio.com/docs/setup/osx" target="_blank">https://code.visualstudio.com/docs/setup</a></p>
+<p>2. Install XML Tools plugin, <a href="https://marketplace.visualstudio.com/items?itemName=DotJoshJohnson.xml" target="_blank">https://marketplace.visualstudio.com/items?itemName=DotJoshJohnson.xml</a></p>
+<ul>
+<li>Press <strong>F1</strong></li>
+<li>Start typing <code>install extensions</code></li>
+<li>Press <strong>Enter</strong> to select it </li>
+<li><strong>EXTENSION</strong> tab will open</li>
+<li>Start typing: <code>xml tools</code></li>
+<li>Select green <strong>Install</strong> button</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Configuring http(s) Proxy for Dev and Runtime Components" duration="0">
+        <p> Open Chrome and go to the URL below to see the proxy details</p>
+<p>Turn off proxying for localhost:</p>
+<p>command line:</p>
+<pre><code>export no_proxy=&#34;127.0.0.1,localhost,$(hostname -i)&#34;</code></pre>
+<p>jvm:</p>
+<pre><code>-Dhttp.nonProxyHosts=</code></pre>
+<table>
+<tr><td colspan="1" rowspan="1"><p>curl</p>
+</td><td colspan="2" rowspan="1"><p><strong>cli: </strong>curl -x <a href="http://127.0.0.1:8080" target="_blank">http://127.0.0.1:8080</a> &lt;url&gt;</p>
+<p><strong>~/.curlrc</strong></p>
+<p>proxy = &lt;proxy_host&gt;:&lt;proxy_port&gt;</p>
+<p>Windows:</p>
+<p>%APPDATA%\<strong>_curlrc</strong></p>
+<p>* Use double-quotes in Windows for curl parameters.</p>
+<p>In curl CLI: curl --proxy &lt;proxy server:port&gt;</p>
+<p>If _curlrc setting does not work, you always can use:</p>
+<p>set http_proxy=http://&lt;proxy_host&gt;:&lt;proxy_port&gt;</p>
+<p>set https_proxy=http://&lt;proxy_host&gt;:&lt;proxy_port&gt;</p>
+<p>If you can reach IP address of the Edge but not the DNS name, use</p>
+<p>curl -k https://52.89.253.102/v1/organizations/&lt;yourorg&gt; -H &#34;Host: api.enterprise.apigee.com&#34; -v -u &lt;yourorgadminmail&gt;:&lt;yourorgadminpassword&gt;</p>
+<p>* -k to ignore TLS certificate checks</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>git</p>
+</td><td colspan="2" rowspan="1"><p>git config http.proxy http://host:port</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>vscode</p>
+</td><td colspan="2" rowspan="1"><p><strong>Preferences/User Settings</strong></p>
+<p>{</p>
+<p> &#34;http.proxy&#34;: &#34;http://my.proxy.address:8080&#34;,</p>
+<p> &#34;https.proxy&#34;: &#34;http://my.proxy.address:8080&#34;,</p>
+<p> &#34;http.proxyStrictSSL&#34;: false</p>
+<p>}</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>jvm/maven plugin</p>
+</td><td colspan="2" rowspan="1"><p><strong>Linux:</strong></p>
+<p>export MAVEN_OPTS=&#34;-Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=8080 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=8080&#34;</p>
+<p><strong>Windows:</strong></p>
+<p>set MAVEN_OPTS=-Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=8080 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=8080</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>npm</p>
+</td><td colspan="2" rowspan="1"><p>npm config set proxy http://proxy.company.com:8080</p>
+<p>npm config set https-proxy http://proxy.company.com:8080</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>maven</p>
+</td><td colspan="2" rowspan="1"><p><strong>{M2_HOME}/conf/settings.xml</strong></p>
+<p>&lt;proxies&gt;</p>
+<p>      &lt;proxy&gt;</p>
+<p>      &lt;id&gt;optional&lt;/id&gt;</p>
+<p>      &lt;active&gt;true&lt;/active&gt;</p>
+<p>      &lt;protocol&gt;http&lt;/protocol&gt;</p>
+<p>      &lt;username&gt;mkyong&lt;/username&gt;</p>
+<p>      &lt;password&gt;password&lt;/password&gt;</p>
+<p>      &lt;host&gt;proxy.mkyong.com&lt;/host&gt;</p>
+<p>      &lt;port&gt;8888&lt;/port&gt;</p>
+<p>      &lt;nonProxyHosts&gt;local.net|some.host.com&lt;/nonProxyHosts&gt;</p>
+<p>    &lt;/proxy&gt;</p>
+<p>  &lt;/proxies&gt;</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>request/node.js</p>
+</td><td colspan="2" rowspan="1"><p>// In the code when defining r instance:</p>
+<p>var r = request.defaults({&#39;proxy&#39;:&#39;http://localproxy.com&#39;})</p>
+</td></tr>
+<tr><td colspan="1" rowspan="1"><p>cucumber/node.js</p>
+</td><td colspan="2" rowspan="1"><p>Windows:</p>
+<p>set http.proxy=http://my.proxy.address:8080</p>
+<p>set https.proxy=http://my.proxy.address:8080</p>
+</td></tr>
+</table>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Apigee Apickli Example Project" duration="0">
+        <h2 is-upgraded>Deployment Diagram</h2>
+<p>The amok project contains three components</p>
+<ul>
+<li>* nodes project that contains mocking application and responses, exposes itself on <code>localhost:3000</code>;</li>
+<li>* tests project that is Apickli/cucumber BDD tests feature;</li>
+<li>* proxy  project which is a wrapper that enable deployment of node.js application onto the Edge.</li>
+</ul>
+<p class="image-container"><img style="width: 601.70px" src="img/872e64f7d813eee4.png"></p>
+<p>Reference Links:</p>
+<ul>
+<li><a href="https://github.com/apickli/apickli" target="_blank">https://github.com/apickli/apickli</a></li>
+<li><a href="https://github.com/api-bucket/amok" target="_blank">https://github.com/api-bucket/amok</a></li>
+</ul>
+<h2 is-upgraded>Setup Mock Project</h2>
+<p>1. mkdir <code>~/dbc</code> and cd to directory <code>~/dbc</code></p>
+<pre>mkdir ~/dbc
+cd ~/dbc</pre>
+<p>2. Fetch the source</p>
+<pre>git clone  https://github.com/api-bucket/amok.git</pre>
+<aside class="special"><p><strong>NOTE: </strong>For the next section notice that we are working with 2 terminal sessions.</p>
+</aside>
+<p>4. Navigate to the mock project. </p>
+<pre>cd ~/dbc/amok/examples/apigee-amok/node</pre>
+<p>6. Start VSCode</p>
+<p>code .</p>
+<aside class="special"><p><strong>NOTE:</strong> If code CLI command is not recognised,</p>
+<p>1. Open the Command Palette (⌘ + ⇧ + P on Mac) OR View ❯ Command Palette</p>
+<p>2. Type shell command to find  Shell Command: Install &#39;code&#39; command in PATH command</p>
+</aside>
+<p>7. Let&#39;s make a change. Add below line 27 add line:</p>
+<p>console.log( &#34;Listening to port: 3000&#34;);</p>
+<p>8. In <strong>VSCode</strong> menu select <strong>View/Toggle Integrated Terminal</strong></p>
+<p>9. In the terminal window, build the Node.js application using <code>npm</code> command</p>
+<pre>npm install</pre>
+<p>10. Run the project. </p>
+<pre>node app.js</pre>
+<p class="image-container"><img style="width: 601.70px" src="img/a9f00606670d3fce.png"></p>
+<p>7. Test the project. In Chrome browser navigate to <a href="http://localhost:3000/json" target="_blank">http://localhost:3000/json</a></p>
+<p>Observe  a json diagram, nicely presented by JSONView Chrome extension.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Build and run BDD Project" duration="0">
+        <h2 is-upgraded>Customise apigee-amok project execution environment</h2>
+<p>1. Back in the terminal window, go to <strong>apickli</strong> project</p>
+<pre>cd ~/dbc/amok/examples/apigee-amok/tests</pre>
+<p>2. Open <strong>VSCode</strong> in <strong>apickli</strong> project</p>
+<pre>code .</pre>
+<p>3. In <strong>VSCode</strong> menu, select <strong>View/Toggle Integrated Terminal</strong></p>
+<p>2. Fetch node packages</p>
+<pre>npm install</pre>
+<p>3. Create symbolic link on latest version of the apickli-gherkin.js file.</p>
+<pre>cd integration/step-definitions
+ln -fs ../../node_modules/apickli/apickli-gherkin.js apickli-gherkin.js</pre>
+<aside class="special"><p>NOTE: On Windows make a copy of this file</p>
+</aside>
+<p>4. Edit the url of the proxy endpoint. Open <code>integration/step-definitions/mock.js</code> file. Edit line 7 to:</p>
+<pre><code>var url = &#39;dbcjd-test.apigee.net/amok-api&#39;;</code></pre>
+<aside class="special"><p><strong>NOTE: </strong> use your organisation name, of course </p>
+</aside>
+<p>and line 9 to:</p>
+<pre><code>var env = process.env.NODE_ENV || &#39;test&#39;;</code></pre>
+<p>5. Save the file, <strong>Cmd+S</strong></p>
+<h2 is-upgraded>Deploy Mock Proxy to the Edge</h2>
+<p>1. In the terminal window, go to Apigee nodejs proxy directory</p>
+<pre>cd ~/dbc/amok/examples/apigee-amok/</pre>
+<p>Notice the <code>pom.xml</code> file here.</p>
+<p>2. Deploy the project into your org and test environment as well as run the BDD tests against it. You are supping three key bits of information during <code>mvn</code> invocation: </p>
+<ul>
+<li><code>dbcjd</code> profile -- a profile that contains credentials for your Edge org;</li>
+<li><code>test</code> profile -- defines an Edge org environment you are deploying proxy to;</li>
+<li><code>apigee.org=dbcjd</code> -- JVM environment variable that overrides default org name defined in test profile.</li>
+</ul>
+<pre>mvn install -Pdbcjd,test -Dapigee.org=dbcjd</pre>
+<h2 is-upgraded>Customization of pom.xml for Windows user to run BDD Tests</h2>
+<p>For Windows user, the out-of-the-box <code>.pom</code> file will not execute cucumber tests correctly.</p>
+<p>The <code>.pom</code> file expects <code>cucumber.js</code> to be executed according to the Unix conventions, ie., using shebang (<code>#!</code>).</p>
+<p>To be able to run <strong>cucumber</strong> on <strong>Windows</strong> you need to account for this discrepancy.</p>
+<p>In the <code>.pom</code> file locate the following section:</p>
+<pre><code> &lt;configuration&gt;
+                            &lt;environmentVariables&gt;
+                                &lt;NODE_ENV&gt;
+                                    ${apigee.env}
+                                &lt;/NODE_ENV&gt;
+                            &lt;/environmentVariables&gt;
+                            &lt;executable&gt;tests/node_modules/cucumber/bin/cucumber.js&lt;/executable&gt;
+                            &lt;commandlineArgs&gt;
+                                tests/integration
+                            &lt;/commandlineArgs&gt;
+                        &lt;/configuration&gt;
+                    &lt;/execution&gt;
+</code></pre>
+<p>and adjust executable and commandlineArgs tags to:</p>
+<pre><code>&lt;executable&gt;node&lt;/executable&gt;
+                            &lt;commandlineArgs&gt;
+                               tests/node_modules/cucumber/bin/cucumber.js tests/integration
+                            &lt;/commandlineArgs&gt;
+</code></pre>
+<p>Similarly, for the next page, to run cucumber.js from CLI instead of </p>
+<pre><code>./node_modules/cucumber/bin/cucumber.js integration/FuncionalTests.feature </code></pre>
+<p>use</p>
+<pre><code>node ./node_modules/cucumber/bin/cucumber.js integration/FuncionalTests.feature</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Execute and Trace proxy requests" duration="0">
+        <h2 is-upgraded>Trace Proxy request</h2>
+<p>1. In your browser, open <a href="https://enterprise.apigee.com" target="_blank">https://enterprise.apigee.com</a> and log in.</p>
+<p>2. Select <strong>APIs/API Proxies</strong> menu item</p>
+<p>3. Select <strong>amok</strong> project, deployed couple minutes ago.</p>
+<p>4. Switch to <strong>TRACE</strong> tab </p>
+<p>5. Start tracing session by clicking on <strong>Start Trace Session</strong> button.</p>
+<p>6. Re-run BDD tests in the terminal window</p>
+<p>cd ~/dbc/amok/examples/apigee-amok/</p>
+<p>mvn exec:exec@integration -Pdbcjd,test -Dapigee.org=dbcjd</p>
+<p>Keep an eye on the <strong>Transactions</strong> pane of the Edge Tracing page.</p>
+<h2 is-upgraded>Running Node.js tests manually</h2>
+<p>1. Go to the <strong>apickli</strong> project level, where <code>package.json</code> is located.</p>
+<pre><code>cd ~dbc/amok/examples/apigee-amok/tests</code></pre>
+<p>3. Runt the BDD Apickli/cucumber tests</p>
+<pre><code>./node_modules/cucumber/bin/cucumber.js integration/FuncionalTests.feature </code></pre>
+<p>Keep an eye on the Transactions pane of the Edge Tracing page. 4 more request traces will appear.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Adding New BDD Test" duration="0">
+        <p>1. Add following scenario to the integration/FuncionalTests.feature file:</p>
+<pre><code>        Scenario: I should get successful payment object created response
+                Given I set x-mock-response-code header to 201
+                When I POST to /json
+                Then response code should be 201
+                And response body should be valid json
+                And response body path $.string should be Hi</code></pre>
+<p>2. Re-run the test. Analyse the failed test. The response body path <code>$.string</code> has an actual value <code>Hello World</code>, but expected <code>Hi</code>.</p>
+<p class="image-container"><img style="width: 601.70px" src="img/7e0edacf30812c25.png"></p>
+<p>3. Edit the <code>Hi</code> to the <code>Hello World</code> string. </p>
+<p>4. Re-run the tests. Whole feature is successfully executed this time.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Sending POST Request using Postman and curl clients" duration="0">
+        <h2 is-upgraded>Postman POST request</h2>
+<p>1. Open Postman</p>
+<p>2. In the Enter request URI text box, enter the URL of the mocked service</p>
+<p><a href="http://dbcjd-test.apigee.net/amok-api/json" target="_blank">http://dbcjd-test.apigee.net/amok-api/json</a></p>
+<p>3. Change verb of the request from default <code>GET</code> to <code>POST</code></p>
+<p>4. Change the Content-Type of the Body to <code>application/json</code>. Always explicitly specify the type of the body of the <strong>POST</strong> request.</p>
+<h2 is-upgraded>Running curl POST request</h2>
+<p>1. Still in the <strong>Postman</strong> active window, click on the orange <strong>Generate Code</strong> link. </p>
+<p>2. Select <strong>cURL</strong> value in the combo-box of the <strong>GENERATE CODE SNIPPETS</strong> modal dialog.</p>
+<p>3 Click on <strong>Copy to Clipboard</strong> button</p>
+<p>4. Switch to the terminal window.</p>
+<p>5. Paste the code and press enter</p>
+<pre><code>curl http://dbcjd-test.apigee.net/amok-api/json -X POST</code></pre>
+<p>Keep an eye on the Transactions pane of the Edge Tracing page. More request traces will appear as you execute the queries.</p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>

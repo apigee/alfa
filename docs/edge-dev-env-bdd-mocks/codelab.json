@@ -1,0 +1,27 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-07-12T12:56:14Z",
+  "id": "edge-dev-env-bdd-mocks",
+  "duration": 0,
+  "title": "Setting Up Apigee Edge Development Environment and Building BDD-Mock Project",
+  "authors": "yuriyl@google.com",
+  "summary": "It takes time and some learning curve to set up a development environment for a person that begins her Apigee Edge journey.  The purpose of this lab is to ease the pain for both, Mac, Windows, and Linux users, especially with respect of enterprise environments where some additional attention to http(s) proxy configurations is required.",
+  "source": "1o5MoYxIa26gipKLCTBhsOssl_1Kl03vWsiyctFPz6eE",
+  "theme": "apigee",
+  "status": [
+    "staged"
+  ],
+  "category": [
+    "Apigee"
+  ],
+  "tags": [
+    "kiosk",
+    "web"
+  ],
+  "feedback": "https://github.com/apigee/alfa/issues/new?title=[edge-dev-env-bdd-mocks]:\u0026labels[]=content-platform\u0026labels[]=apigee",
+  "ga": "UA-143092999-1",
+  "url": "edge-dev-env-bdd-mocks"
+}
